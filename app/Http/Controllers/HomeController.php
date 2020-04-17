@@ -23,6 +23,9 @@ use Response;
 use Lang;
 use Config;
 
+use Illuminate\Support\Facades\Auth;
+
+
 
 
 class HomeController extends Controller{
@@ -1081,5 +1084,12 @@ class HomeController extends Controller{
                         ->with('install', $install)
                         ->with('theme', $theme);
     }
+
+  
+   public function logout() {
+        Auth::logout();
+        return redirect('/login');
+   }
+  
 
 }

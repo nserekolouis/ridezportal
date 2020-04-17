@@ -8168,4 +8168,73 @@ class CustomerController extends Controller
       Requests::where('updated_at', '<', $time_ago)->where('confirmed_walker', '=', 0)->update(array('is_cancelled' => 1));
     }
 
+  
+  public function get_fare_estimate(){
+    $lat_from = Input::post('lat_from');
+    $long_from = Input::post('long_from');
+    $lat_dest = Input::post('lat_dest');
+    $long_dest = Input::post('long_dest');
+    if(empty($lat_from)){
+      return 'Please put source latitude';
+    }elseif(empty($long_from)){
+      return 'Please put source longitude';
+    }elseif(empty($lat_dest)){
+      return 'Please put destination latitude';
+    }elseif(empty($long_dest)){
+      return 'Please put destination longitude';
+    }else{
+      $url = "https://maps.googleapis.com/maps/api/directions/json?origin=".$lat_from.",".$long_from."&destination=".$lat_dest.",".$long_dest."&sensor=false&key=AIzaSyA9wgwd7gOfPASGneXAWRut6gs_PaBHBRM";
+      $method = "POST";
+      $result = json_decode($this->CallAPI($method,$url,false),true);
+      $distance = $result['routes'][0]['legs'][0]['distance']['value'];
+      $minutes = $result['routes'][0]['legs'][0]['duration']['value'];
+      
+      $walker_types = DB::table('walker_type')->where('id', '1')->first();
+      $info['price_per_unit_distance'] = $walker_types->price_per_unit_distance;
+      $info['price_per_unit_time'] = $walker_types->price_per_unit_distance;
+      $info['base_price'] = $walker_types->base_price;
+      $info['base_distance'] = $walker_types->base_distance;
+      
+      $totaldistancecost = ((($distance)/1000) - $info['base_distance']) * $info['price_per_unit_distance'];
+      $totalTimeCost     = $info['price_per_unit_time'] * ($minutes/60);
+      $fare = $totaldistancecost + $totalTimeCost + $info['base_price'];
+      $rounded_fare = (($fare+99)/100)*100;
+      $response['message'] = 'price estimate';
+      $response['status_code'] = '1';
+      $response['fare'] = $rounded_fare;
+      return $response;
+    }
+  }
+  
+  function CallAPI($method, $url, $data = false){
+	    $curl = curl_init();
+	    switch ($method){
+	        case "POST":
+	            curl_setopt($curl, CURLOPT_POST, 1);
+	            if ($data)
+	                curl_setopt($curl, CURLOPT_POSTFIELDS, $data);
+	            break;
+	        case "PUT":
+	            curl_setopt($curl, CURLOPT_PUT, 1);
+	            break;
+	        default:
+	            if ($data)
+	                $url = sprintf("%s?%s", $url, http_build_query($data));
+	    }
+
+	    // Optional Authentication:
+	    curl_setopt($curl, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+	    curl_setopt($curl, CURLOPT_USERPWD, "username:password");
+	    curl_setopt($curl, CURLOPT_URL, $url);
+	    curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
+      curl_setopt($curl, CURLOPT_HTTPHEADER, array(                                                                          
+        'Content-Type: application/json',                                                                                
+        'Content-Length: ' . strlen($data))                                                                       
+      );    
+	    $result = curl_exec($curl);
+	    curl_close($curl);
+	    return $result;
+	}
+
+
 }

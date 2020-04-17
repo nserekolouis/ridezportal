@@ -113,6 +113,10 @@ Route::post('/user/provider_list', 'CustomerController@get_provider_list');
 Route::post('/user/setdestination', 'CustomerController@user_set_destination');
 Route::post('/user/geteta', 'CustomerController@get_eta');
 
+Route::post('/user/get_fare_estimate', 'CustomerController@get_fare_estimate');
+
+
+
 
 // Walker APIs
 Route::get('/provider/check_banking', 'ProviderController@check_banking');

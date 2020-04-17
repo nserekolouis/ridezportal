@@ -52,9 +52,15 @@ return [
     |
     */
 
+
     'url' => env('APP_URL', 'http://192.168.8.101/'),
 
     'asset_url' => env('ASSET_URL', 'http://192.168.8.101/'),
+
+    'url' => env('APP_URL', 'http://ridez.mywworld.com/'),
+
+    'asset_url' => env('ASSET_URL', 'http://ridez.mywworld.com/'),
+
 
     /*
     |--------------------------------------------------------------------------
