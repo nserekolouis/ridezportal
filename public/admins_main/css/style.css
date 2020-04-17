@@ -1,0 +1,31 @@
+
+.input_container ul {
+	width: 396px;
+        
+	border: 1px solid #eaeaea;
+	position: absolute;
+	z-index: 9;
+	background: #f3f3f3;
+        padding:0px;
+        font-size: 15px;
+	list-style: none;
+}
+.input_container ul li {
+	padding:0px;
+        height: 30px;
+}
+.input_container ul li:hover {
+	background: #eaeaea;
+}
+#country_list_id {
+	display: none;
+}
+td,th{
+   text-align:center;
+}
+
+.spacepad{
+    padding: 0;
+}
+
+
