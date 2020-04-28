@@ -11,6 +11,11 @@ use DB;
 use Illuminate\Support\Facades\URL;
 use Mail;
 
+use LaravelFCM\Message\OptionsBuilder;
+use LaravelFCM\Message\PayloadDataBuilder;
+use LaravelFCM\Message\PayloadNotificationBuilder;
+use FCM;
+
 class Helper{
 
 function send_data_message(){
@@ -26,8 +31,8 @@ function send_data_message(){
   $info['key1']='value1';
   $info['key2']='value2';
 
-  $method='POST';
-  $reponse=Callapi($header,$method,$url,$info);
+  $method = 'POST';
+  $reponse = Callapi($header,$method,$url,$info);
   return $response;
 }
 
@@ -187,28 +192,114 @@ function send_notifications($id, $type, $action, $message, $is_imp = NULL) {
         $user = DB::table('owner')->where('id', $id)->first();
     }
   
-    if(!empty($user) && !empty($user->fcm_token)){
-      $fields = array(
-        'to' => $user->fcm_token,
+    if(!empty($user) && !empty($user->device_token)){
+      //$fields = array(
+        //'to' => $user->fcm_token,
         //'notification' => array('title' => $action, 'body' => $message),
-        'data' => array('action' => $action, 'message' => $message)
-      );
+        //'data' => array('action' => $action, 'message' => $message)
+      //);
 
-      $headers = array(
-        'Authorization:key='.Config::get('fcm.key'),
-        'Content-Type:application/json'
-      );
-      $ch = curl_init();
-      curl_setopt($ch, CURLOPT_URL, 'https://fcm.googleapis.com/fcm/send');
-      curl_setopt($ch, CURLOPT_POST, true);
-      curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-      curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-      curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-      curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4 );
-      curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($fields));
-      $result = curl_exec($ch);
-      curl_close($ch);
-      return $result;
+      // $headers = array(
+      //   'Authorization:key='.\Config::get('fcm.key'),
+      //   'Content-Type:application/json'
+      // );
+      // $ch = curl_init();
+      // curl_setopt($ch, CURLOPT_URL, 'https://fcm.googleapis.com/fcm/send');
+      // curl_setopt($ch, CURLOPT_POST, true);
+      // curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+      // curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+      // curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+      // curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4 );
+      // curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($fields));
+      // $result = curl_exec($ch);
+      // curl_close($ch);
+      // return $result;
+
+      $optionBuilder = new OptionsBuilder();
+      $optionBuilder->setTimeToLive(60*20);
+
+      $notificationBuilder = new PayloadNotificationBuilder('New Trip');
+      $notificationBuilder->setBody('New trip order.')
+                          ->setSound('default');
+
+      $dataBuilder = new PayloadDataBuilder();
+      $dataBuilder->addData(['action' => $action, 'message' => $message]);
+
+      $option = $optionBuilder->build();
+      $notification = $notificationBuilder->build();
+      $data = $dataBuilder->build();
+
+      //$token = $token;
+      
+      $downstreamResponse = FCM::sendTo($user->device_token, $option,$notification,$data);
+      return $downstreamResponse->numberSuccess();
+    }
+}
+
+function send_trip_notifications($id, $type, $action, $message, $is_imp = NULL,$title,$body) {
+    if (!isset($id) || empty($id)) {
+        $id = "0";
+    } else {
+        $id = trim($id);
+    }
+    if (!isset($message) || empty($message)) {
+        $message = "Message not set";
+    }
+    if (!isset($action) || empty($action)) {
+        $action = "Message not set";
+    } else {
+        $action = trim($action);
+    }
+  
+    if ($type == 'walker') {
+        $user = DB::table('walker')->where('id', $id)->first();
+    } else {
+        $user = DB::table('owner')->where('id', $id)->first();
+    }
+  
+    if(!empty($user) && !empty($user->device_token)){
+      //$fields = array(
+        //'to' => $user->fcm_token,
+        //'notification' => array('title' => $action, 'body' => $message),
+        //'data' => array('action' => $action, 'message' => $message)
+      //);
+
+      // $headers = array(
+      //   'Authorization:key='.\Config::get('fcm.key'),
+      //   'Content-Type:application/json'
+      // );
+      // $ch = curl_init();
+      // curl_setopt($ch, CURLOPT_URL, 'https://fcm.googleapis.com/fcm/send');
+      // curl_setopt($ch, CURLOPT_POST, true);
+      // curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+      // curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+      // curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+      // curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4 );
+      // curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($fields));
+      // $result = curl_exec($ch);
+      // curl_close($ch);
+      // return $result;
+
+      $optionBuilder = new OptionsBuilder();
+      $optionBuilder->setTimeToLive(60*20);
+
+      $notificationBuilder = new PayloadNotificationBuilder($title);
+      $notificationBuilder->setBody($body)
+                            ->setSound('default');
+
+      $dataBuilder = new PayloadDataBuilder();
+      $dataBuilder->addData(['action' => $action, 'message' => $message]);
+
+      $option = $optionBuilder->build();
+      $notification = $notificationBuilder->build();
+      $data = $dataBuilder->build();
+
+      //$token = $token;
+
+      $downstreamResponse = FCM::sendTo($user->device_token, $option, $notification, $data);
+      return $downstreamResponse;
+    }else{
+      return 'token and user empty';
     }
 }
 
@@ -1175,6 +1266,10 @@ function test_ios_noti($id, $type, $title, $message) {
         }
     }
 }*/
+
+
+
+
 
 function send_ios_push($user_id, $title, $message, $type) {
     if ($type == 'walker') {

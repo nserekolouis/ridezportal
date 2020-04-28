@@ -53,13 +53,10 @@ return [
     */
 
 
-    'url' => env('APP_URL', 'http://192.168.8.101/'),
+    'url' => env('APP_URL', 'http://192.168.8.104/'),
 
-    'asset_url' => env('ASSET_URL', 'http://192.168.8.101/'),
+    'asset_url' => env('ASSET_URL', 'http://192.168.8.104/'),
 
-    'url' => env('APP_URL', 'http://ridez.mywworld.com/'),
-
-    'asset_url' => env('ASSET_URL', 'http://ridez.mywworld.com/'),
 
 
     /*
@@ -181,6 +178,9 @@ return [
         App\Providers\EventServiceProvider::class,
         App\Providers\RouteServiceProvider::class,
 
+        // LARAVEL FCM
+        LaravelFCM\FCMServiceProvider::class,
+
     ],
 
     /*
@@ -243,6 +243,8 @@ return [
         'Helper' => App\Helper::class,
         'Ledger' => App\Ledger::class,
         'PromoCodes' => App\PromoCodes::class,
+        'FCM'      => LaravelFCM\Facades\FCM::class,
+        'FCMGroup' => LaravelFCM\Facades\FCMGroup::class,
     ],
     'menu_titles' => [
         'admin_control' => 'Admin Control',

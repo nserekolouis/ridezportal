@@ -23,12 +23,16 @@ use App\WalkLocation;
 use App\User;
 use App\WalkerReview;
 use App\DogReview;
+use App\PromoCodes;
+use App\Ledger;
 use DB;
 use View;
 use Response;
 use Hash;
 use Helper;
 use Request;
+
+
 
 
 class ProviderController extends Controller
@@ -2048,7 +2052,7 @@ class ProviderController extends Controller
                                         ->where('request_id', $request_id)
                                         ->min('created_at');
 
-                                $date_time = get_user_time($default_timezone, $user_timezone, $time);
+                                $date_time = $helper->get_user_time($default_timezone, $user_timezone, $time);
 
                                 $request_data['start_time'] = $date_time;
 
@@ -2244,7 +2248,7 @@ class ProviderController extends Controller
 
                             $cards = "";
                             $cardlist = Payment::where('owner_id', $owner->id)->where('is_default', 1)->first();
-                            if (count($cardlist) >= 1) {
+                            if (is_array($cardlist)) {
                                 $cards = array();
                                 $default = $cardlist->is_default;
                                 if ($default == 1) {
@@ -2441,6 +2445,7 @@ class ProviderController extends Controller
         return $response;
     }
 
+
     // walker started
     public function request_walker_started() {
         if (Request::isMethod('post')) {
@@ -2568,8 +2573,11 @@ class ProviderController extends Controller
                                     $user_type = 0;
                                     $id = $request->owner_id;
                                     $title = $helper->transl('walker_started_push', $id, $user_type);
-                                    $helper->send_notifications($request->owner_id, "owner", "driver_started", $message);
-
+                                    //$this->send_walker_started_notification($request->owner_id, "owner", "driver_started", $message);
+                                    
+                                    $title = "Trip Status";
+                                    $body = "Rider coming to you.";
+                                $helper->send_trip_notifications($request->owner_id, "owner", "driver_started",null,$message,$title,$body);
 
                                     $response_array = array('success' => true);
                                     $response_code = 200;
@@ -2608,6 +2616,8 @@ class ProviderController extends Controller
         $response = Response::json($response_array, $response_code);
         return $response;
     }
+
+    
 
     // walked arrived
     public function request_walker_arrived() {
@@ -2737,8 +2747,11 @@ class ProviderController extends Controller
 
                                     $message = $response_array;
                                                                     
-                                    $helper->send_notifications($request->owner_id, "owner", "driver_arrived", $message);
+                                    //$helper->send_walker_arrived_notification($request->owner_id, "owner", "driver_arrived", $message);
 
+                                    $title = "Trip Status";
+                                    $body = "Rider has arrived.";
+                                $helper->send_trip_notifications($request->owner_id, "owner", "driver_arrived",null,$message,$title,$body);
                                     $response_array = array('success' => true);
                                     $response_code = 200;
                                 } else {
@@ -2772,6 +2785,8 @@ class ProviderController extends Controller
         $response = Response::json($response_array, $response_code);
         return $response;
     }
+
+   
 
     // walk started
     public function request_walk_started() {
@@ -2908,8 +2923,11 @@ class ProviderController extends Controller
 
                                     $message = $response_array;
                                                                     
-                                    //send_notifications($request->owner_id, "owner", $title, $message);
-                                                                    
+                                    //$this->send_walk_started_notification($request->owner_id, "owner", $title, $message);
+
+                                    $t = "Trip Status";
+                                    $body = "Trip started.";
+                                    $helper->send_trip_notifications($request->owner_id, "owner", $title, $message,null,$t,$body);
                                     $response_array = array('success' => true);
                                     $response_code = 200;
                                 } else {
@@ -2945,8 +2963,10 @@ class ProviderController extends Controller
         return $response;
     }
 
+    
     // walk completed
     public function request_walk_completed() {
+        $helper = new Helper();
         if (Request::isMethod('post')) {
             $request_id = Input::get('request_id');
             $token = Input::get('token');
@@ -2999,7 +3019,6 @@ class ProviderController extends Controller
                 $is_admin = $this->isAdmin($token);
                 if ($walker_data = $this->getWalkerData($walker_id, $token, $is_admin)) {
                     // check for token validity
-                    $helper = new Helper();
                     if ($helper->is_token_active($walker_data->token_expiry) || $is_admin) {
                         $providertype = ProviderType::where('id', $walker_data->type)->first();
                         // Do necessary operations 
@@ -3008,7 +3027,6 @@ class ProviderController extends Controller
                             if ($request->confirmed_walker == $walker_id) {
 
                                 if ($request->is_started == 1) {
-
                                     $settings = Settings::where('key', 'default_charging_method_for_users')->first();
                                     $pricing_type = $settings->value;
                                     $settings = Settings::where('key', 'default_distance_unit')->first();
@@ -3025,80 +3043,78 @@ class ProviderController extends Controller
                                     $free_promo = Settings::where('key', 'free_trip_promo')->first()->value;
                                     $free_amount = Settings::where('key', 'free_promo_amount')->first()->value;
                                     $free_distance = Settings::where('key', 'free_promo_distance')->first()->value;
-                                                                        $free_promo_total = 0;
+                                    $free_promo_total = 0;
 
-                                                                        foreach ($reqserv as $rse) {
-                                                                                //Log::info('type = ' . print_r($rse->type, true));
-                                                                                $protype = ProviderType::where('id', $rse->type)->first();
-                                                                                $pt = ProviderServices::where('provider_id', $walker_id)->where('type', $rse->type)->first();
-                                                                                if ($pt->base_price == 0) {
-                                                                                        /* $setbase_price = Settings::where('key', 'base_price')->first();
-                                                                                            $base_price = $setbase_price->value; */
-                                                                                        $base_price = $providertype->base_price;
-                                                                                        $rse->base_price = $base_price;
-                                                                                } else {
-                                                                                        $base_price = $pt->base_price;
-                                                                                        $rse->base_price = $base_price;
-                                                                                }
-                                                                                $is_multiple_service = Settings::where('key', 'allow_multiple_service')->first();
-                                                                                if ($pt->price_per_unit_distance == 0) {
-                                                                                    if ($distance <= $providertype->base_distance) {
-                                                                                            $price_per_unit_distance = 0;
-                                                                                    } else {
-                                                                                            $price_per_unit_distance = $providertype->price_per_unit_distance * ($distance - $providertype->base_distance);
-                                                                                    }
-                                                                                    $rse->distance_cost = $price_per_unit_distance;
-                                                                                } else {
-                                                                                    if ($distance <= $providertype->base_distance) {
-                                                                                            $price_per_unit_distance = 0;
-                                                                                    } else {
-                                                                                            $price_per_unit_distance = $pt->price_per_unit_distance * ($distance - $providertype->base_distance);
-                                                                                    }
-                                                                                    $rse->distance_cost = $price_per_unit_distance;
-                                                                                }
-                                                                                if ($pt->price_per_unit_time == 0) {
-                                                                                    if ($distance <= $providertype->base_distance) {
-                                                                                            $price_per_unit_time = 0;
-                                                                                    } else {
-                                                                                            $price_per_unit_time = $providertype->price_per_unit_time * $time;
-                                                                                    }
-                                                                                    $rse->time_cost = $price_per_unit_time;
-                                                                                } else {
-                                                                                    if ($distance <= $providertype->base_distance) {
-                                                                                            $price_per_unit_time = 0;
-                                                                                    } else {
-                                                                                            $price_per_unit_time = $pt->price_per_unit_time * $time;
-                                                                                    }
-                                                                                    $rse->time_cost = $price_per_unit_time;
-                                                                                }
-                                                                                $actual_total = $base_price + $price_per_unit_distance + $price_per_unit_time;
-                                                                                if ($free_promo == 1 && $distance > 0.5 && $time > 2) {
-                                                                                        if($distance > $free_distance){
-                                                                                            $free_promo_total = $free_amount;
-                                                                                            $actual_total =  $actual_total - $free_amount;
-                                                                                        }else{
-                                                                                            $free_promo_total = $actual_total;
-                                                                                            $actual_total = 0;
-                                                                                        }
-                                                                                }else{
-                                                                                    $free_promo_total = 0;
-                                                                                }
-                                                                                $rse->total = $actual_total;
-                                                                                $rse->save();
+                                    foreach ($reqserv as $rse) {
+                                        //Log::info('type = ' . print_r($rse->type, true));
+                                        $protype = ProviderType::where('id', $rse->type)->first();
+                                        $pt = ProviderServices::where('provider_id', $walker_id)->where('type', $rse->type)->first();
+                                        if ($pt->base_price == 0) {
+                                            $base_price = $providertype->base_price;
+                                            $rse->base_price = $base_price;
+                                        } else {
+                                            $base_price = $pt->base_price;
+                                            $rse->base_price = $base_price;
+                                        }
+
+                                        $is_multiple_service = Settings::where('key','allow_multiple_service')->first();
+                                        if ($pt->price_per_unit_distance == 0) {
+                                            if ($distance <= $providertype->base_distance) {
+                                                $price_per_unit_distance = 0;
+                                            }else{
+                                                $price_per_unit_distance = $providertype->price_per_unit_distance * ($distance - $providertype->base_distance);
+                                            }
+                                            $rse->distance_cost = $price_per_unit_distance;
+                                        } else {
+                                            if ($distance <= $providertype->base_distance) {
+                                                $price_per_unit_distance = 0;
+                                            } else {
+                                                $price_per_unit_distance = $pt->price_per_unit_distance * ($distance - $providertype->base_distance);
+                                            }
+                                            $rse->distance_cost = $price_per_unit_distance;
+                                        }
+                                        if ($pt->price_per_unit_time == 0) {
+                                            if ($distance <= $providertype->base_distance) {
+                                                $price_per_unit_time = 0;
+                                            } else {
+                                                $price_per_unit_time = $providertype->price_per_unit_time * $time;
+                                            }
+                                            $rse->time_cost = $price_per_unit_time;
+                                        } else {
+                                            if ($distance <= $providertype->base_distance) {
+                                                $price_per_unit_time = 0;
+                                            } else {
+                                                $price_per_unit_time = $pt->price_per_unit_time * $time;
+                                            }
+                                            $rse->time_cost = $price_per_unit_time;
+                                        }
+                                        $actual_total = $base_price + $price_per_unit_distance + $price_per_unit_time;
+                                        if ($free_promo == 1 && $distance > 0.5 && $time > 2) {
+                                            if($distance > $free_distance){
+                                                $free_promo_total = $free_amount;
+                                                $actual_total =  $actual_total - $free_amount;
+                                            }else{
+                                                $free_promo_total = $actual_total;
+                                                $actual_total = 0;
+                                            }
+                                        }else{
+                                            $free_promo_total = 0;
+                                        }
+                                        $rse->total = $actual_total;
+                                        $rse->save();
                                     }
                                     pay_fail:
-
                                     $rs = RequestServices::where('request_id', $request_id)->get();
-
                                     $settings = Settings::where('key', 'provider_amount_for_each_request_in_percentage')->first();
                                     $provider_percentage = $settings->value;
-
                                     $total = 0;
+
                                     foreach ($rs as $key) {
                                         //Log::info('total = ' . print_r($key->total, true));
                                         $total = $total + $key->total;
                                     }
-                                                                    $total = round($total, -2);
+
+                                    $total = round($total, -2);
                                     $request = Requests::find($request_id);
                                     $request->is_completed = 1;
                                     $request->distance = $distance;
@@ -3115,6 +3131,7 @@ class ProviderController extends Controller
                                             }
                                         }
                                     }
+
                                     $owner_data = Owner::where('id', $request->owner_id)->first();
                                     /* GET REFERRAL & PROMO INFO */
                                     $prom_act = $prom_for_card = $prom_for_cash = $ref_act = $ref_for_card = $ref_for_cash = $ref_total = $promo_total = 0;
@@ -3132,7 +3149,7 @@ class ProviderController extends Controller
                                             $prom_for_card = $settings->value;
                                             if ($prom_for_card == 1 || $is_event_promo == 1) {
                                                 if ($total > 0) {
-                                                    if ($pcode = PromoCodes::where('id', $request->promo_id)->first()) {
+                                                    if ($pcode = PromoCodes::where('id', $request->promo_id)->first()){
                                                         if ($pcode->type == 1) {
                                                             $promo_total = $total * (($pcode->value) / 100);
                                                             $total = $total - $promo_total;
@@ -3259,6 +3276,7 @@ class ProviderController extends Controller
                                             $change_to_cash = Requests::find($request_id);
                                             $request->payment_mode = $change_to_cash->payment_mode = 1;
                                             $change_to_cash->save();
+
                                             /* Client Side Push */
                                             $id = $request->owner_id;
                                             $user_type = 0;
@@ -3266,7 +3284,12 @@ class ProviderController extends Controller
                                             $response_array = array(
                                                 'request_id' => $request_id, 'success' => true, 'message' => $title,);
                                             $message = $response_array;
-                                            //send_notifications($request->owner_id, "owner", $title, $message);
+                                            
+                            //send_notifications($request->owner_id, "owner", $title, $message);
+
+                            //$helper->send_trip_notifications($id,"owner","change_to_cash", $message, $is_imp = NULL,$title,$body);
+
+
                                             /* Client Side Push END */
                                             /* Driver Side Push */
                                             $user_type = 1;
@@ -3738,7 +3761,7 @@ class ProviderController extends Controller
 
                                     $cards = "";
                                     $cardlist = Payment::where('owner_id', $owner_data->id)->where('is_default', 1)->first();
-                                    if (count($cardlist) >= 1) {
+                                    if (is_array($cardlist)){
                                         $cards = array();
                                         $default = $cardlist->is_default;
                                         if ($default == 1) {
@@ -3783,7 +3806,10 @@ class ProviderController extends Controller
 
                                     $message = $response_array;
 
-                                    //send_notifications($request->owner_id, "owner", $title, $message);
+                                    $t = "Trip status";
+                                    $body = "Trip ended.";
+                                    $helper->send_trip_notifications($request->owner_id, "owner",$title,$message,null,$t,$body);
+
                                     $owner = Owner::find($request->owner_id);
                                     if($free_promo == 1){
                                         if($distance >= 10){

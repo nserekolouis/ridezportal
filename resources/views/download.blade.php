@@ -33,7 +33,7 @@
        <div onclick="download_client_application()" class="apps">
          <div class="apps-inner">
            <div>
-             <img style="border-radius:10%;" src="http://truckz.mywworld.com/static/images/clientslogo.png" alt="Client" height="80" width="80">
+             <img style="border-radius:10%;" src="{{ asset('/uploads/icons/client.png')}}" alt="Client" height="80" width="80">
            </div>
            <div class="apps-label">
              <label>Client</label>
@@ -43,7 +43,7 @@
        <div onclick="download_driver_application()" class="apps">
         <div class="apps-inner">
           <div>
-            <img src="http://truckz.mywworld.com/static/images/driverlogo.png" alt="Driver" height="80" width="80">
+            <img src="{{ asset('/uploads/icons/rider.png')}}" alt="Driver" height="80" width="80">
           </div>
           <div class="apps-label">
             <label>Driver</label>

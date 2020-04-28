@@ -47,7 +47,7 @@
         text-transform:uppercase;
         font-weight:normal;
         font-family: sans-serif;
-        color: white;
+        color: #243b53;
       }
 
       center>h3{
@@ -57,7 +57,7 @@
       html, body {
         font-family: 'Helvetica', 'Arial', sans-serif;
         height: 100%;
-        background-image: linear-gradient(#3c87a8,#75b6d9);
+        background-image: linear-gradient(#e2e0e0,#ffffff);
         background-repeat: no-repeat;
         background-size:auto;
         overflow:hidden;

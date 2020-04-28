@@ -70,7 +70,7 @@ Route::post('/user/card_selection', 'OwnerController@card_selection');
 Route::get('/user', 'OwnerController@getProfile');
 Route::any('/user/thing', 'CustomerController@create');
 Route::post('/user/updatething', 'CustomerController@update_thing');
-Route::post('/user/createrequest', 'CustomerController@create_request');
+Route::post('/user/createrequest', 'CustomerController@create_request_two');
 Route::post('/user/createussdrequest', 'CustomerController@create_request_ussd');
 Route::post('/user/payment_type', 'OwnerController@payment_type');
 Route::post('/user/createrequestlater', 'CustomerController@create_request_later');
@@ -202,3 +202,4 @@ Route::post('/adminCurrency', array('as' => 'adminCurrency', 'uses' => 'AdminCon
 Route::get('/settings/installation', array('as' => 'AdminSettingInstallation', 'uses' => 'AdminController@installation_settings'));
 Route::post('/settings', array('as' => 'AdminSettingsSave', 'uses' => 'AdminController@save_settings'));
 Route::post('/theme', array('as' => 'AdminTheme', 'uses' => 'AdminController@theme'));
+Route::post('/provider/location', 'ProviderController@walker_location');
