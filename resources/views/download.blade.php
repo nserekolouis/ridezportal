@@ -78,7 +78,7 @@
            var retVal = confirm("Do you want to download the Client android application");
            if( retVal == true ) {
               //document.write ("User wants to continue!");
-              window.location="http://192.168.8.104/uploads/apps/client/app-debug.apk";
+              window.location="http://ridez.mywworld.com/uploads/apps/client/app-debug.apk";
               return true;
            } else {
               //document.write ("User does not want to continue!");
@@ -90,7 +90,7 @@
            var retVal = confirm("Do you want to download the Driver android application");
            if( retVal == true ) {
               //document.write ("User wants to continue!");
-              window.location="http://192.168.8.104/uploads/apps/driver/app-debug.apk";
+              window.location="http://ridez.mywworld.com/uploads/apps/driver/app-debug.apk";
               return true;
            } else {
               //document.write ("User does not want to continue!");
