@@ -203,3 +203,5 @@ Route::get('/settings/installation', array('as' => 'AdminSettingInstallation', '
 Route::post('/settings', array('as' => 'AdminSettingsSave', 'uses' => 'AdminController@save_settings'));
 Route::post('/theme', array('as' => 'AdminTheme', 'uses' => 'AdminController@theme'));
 Route::post('/provider/location', 'ProviderController@walker_location');
+
+Route::post('/user/apply-referral', 'OwnerController@apply_referral_code');

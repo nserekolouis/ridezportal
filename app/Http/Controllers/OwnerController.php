@@ -2,10 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+
 use Illuminate\Support\Facades\Input;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
+
+
+//use Datatables;
+
 use App\Requests;
 use App\Owner;
 use App\Walker;
@@ -18,6 +22,8 @@ use App\Ledger;
 use Response;
 use Hash;
 use Helper;
+use Request;
+//use Validator;
 
 class OwnerController extends Controller
 {
@@ -95,6 +101,250 @@ class OwnerController extends Controller
     public function destroy($id)
     {
         //
+    }
+
+    public function apply_referral_code() {
+        $helper = new Helper();
+        $referral_code = Input::get('referral_code');
+        $token = Input::get('token');
+        $owner_id = Input::get('id');
+        $is_skip = Input::get('is_skip');
+
+        $validator = Validator::make(
+                        array(
+                    'token' => $token,
+                    'owner_id' => $owner_id,
+                    'is_skip' => $is_skip,
+                        ), array(
+                    'token' => 'required',
+                    'owner_id' => 'required|integer',
+                    'is_skip' => 'required',
+                        ), array(
+                    'token.required' => 5,
+                    'owner_id.required' => 6,
+                    'is_skip.required' => '',
+                        )
+        );
+
+        if ($validator->fails()) {
+            $error_messages = $validator->messages();
+            $response_array = array('success' => false, 'error' => 8, 'error_messages' => array(8), 'error_code' => 401);
+            $response_code = 200;
+        } else {
+            $is_admin = $this->isAdmin($token);
+            if ($owner_data = $this->getOwnerData($owner_id, $token, $is_admin)) {
+                // check for token validity
+                if ($helper->is_token_active($owner_data->token_expiry) || $is_admin) {
+                    if ($is_skip != 1) {
+                        if ($ledger = Ledger::where('referral_code', $referral_code)->first()) {
+                            $referred_by = $ledger->owner_id;
+                            if ($referred_by != $owner_id) {
+                                if ($owner_data->is_referee) {
+                                    $owner = Owner::find($owner_id);
+                                    $code_data = Ledger::where('owner_id', '=', $owner->id)->first();
+                                    $response_array = array(
+                                        'success' => false,
+                                        'error' => 91,
+                                        'error_messages' => array(91),
+                                        'error_code' => 405,
+                                        'id' => $owner->id,
+                                        'first_name' => $owner->first_name,
+                                        'last_name' => $owner->last_name,
+                                        'phone' => $owner->phone,
+                                        'email' => $owner->email,
+                                        'picture' => $owner->picture,
+                                        'bio' => $owner->bio,
+                                        'address' => $owner->address,
+                                        'state' => $owner->state,
+                                        'country' => $owner->country,
+                                        'zipcode' => $owner->zipcode,
+                                        'login_by' => $owner->login_by,
+                                        'social_unique_id' => $owner->social_unique_id,
+                                        'device_token' => $owner->device_token,
+                                        'device_type' => $owner->device_type,
+                                        'token' => $owner->token,
+                                        'referral_code' => $code_data->referral_code,
+                                        'is_referee' => $owner->is_referee,
+                                        'promo_count' => $owner->promo_count,
+                                    );
+                                    $response_code = 200;
+                                } else {
+                                    $settings = Settings::where('key', 'default_referral_bonus_to_refered_user')->first();
+                                    $refered_user = $settings->value;
+
+                                    $settings = Settings::where('key', 'default_referral_bonus_to_refereel')->first();
+                                    $referral = $settings->value;
+
+                                    $ledger = Ledger::find($ledger->id);
+                                    $ledger->total_referrals = $ledger->total_referrals + 1;
+                                    $ledger->amount_earned = $ledger->amount_earned + $refered_user;
+                                    $ledger->save();
+
+                                    $ledger1 = Ledger::where('owner_id', $owner_id)->first();
+                                    $ledger1 = Ledger::find($ledger1->id);
+                                    $ledger1->amount_earned = $ledger1->amount_earned + $referral;
+                                    $ledger1->save();
+
+                                    $owner = Owner::find($owner_id);
+                                    $owner->referred_by = $ledger->owner_id;
+                                    $owner->is_referee = 1;
+                                    $owner->save();
+                                    $owner = Owner::find($owner_id);
+                                    $code_data = Ledger::where('owner_id', '=', $owner->id)->first();
+                                    $response_array = array(
+                                        'success' => true,
+                                        'error' => 92,
+                                        'error_messages' => array(92),
+                                        'id' => $owner->id,
+                                        'first_name' => $owner->first_name,
+                                        'last_name' => $owner->last_name,
+                                        'phone' => $owner->phone,
+                                        'email' => $owner->email,
+                                        'picture' => $owner->picture,
+                                        'bio' => $owner->bio,
+                                        'address' => $owner->address,
+                                        'state' => $owner->state,
+                                        'country' => $owner->country,
+                                        'zipcode' => $owner->zipcode,
+                                        'login_by' => $owner->login_by,
+                                        'social_unique_id' => $owner->social_unique_id,
+                                        'device_token' => $owner->device_token,
+                                        'device_type' => $owner->device_type,
+                                        'token' => $owner->token,
+                                        'referral_code' => $code_data->referral_code,
+                                        'is_referee' => $owner->is_referee,
+                                        'promo_count' => $owner->promo_count,
+                                    );
+                                    $response_code = 200;
+                                }
+                            } else {
+                                $owner = Owner::find($owner_id);
+                                $code_data = Ledger::where('owner_id', '=', $owner->id)->first();
+                                $response_array = array(
+                                    'success' => false,
+                                    'error' => 93,
+                                    'error_messages' => array(93),
+                                    'error_code' => 405,
+                                    'id' => $owner->id,
+                                    'first_name' => $owner->first_name,
+                                    'last_name' => $owner->last_name,
+                                    'phone' => $owner->phone,
+                                    'email' => $owner->email,
+                                    'picture' => $owner->picture,
+                                    'bio' => $owner->bio,
+                                    'address' => $owner->address,
+                                    'state' => $owner->state,
+                                    'country' => $owner->country,
+                                    'zipcode' => $owner->zipcode,
+                                    'login_by' => $owner->login_by,
+                                    'social_unique_id' => $owner->social_unique_id,
+                                    'device_token' => $owner->device_token,
+                                    'device_type' => $owner->device_type,
+                                    'token' => $owner->token,
+                                    'referral_code' => $code_data->referral_code,
+                                    'is_referee' => $owner->is_referee,
+                                    'promo_count' => $owner->promo_count,
+                                );
+                                $response_code = 200;
+                            }
+                        } else {
+                            $owner = Owner::find($owner_id);
+                            $code_data = Ledger::where('owner_id', '=', $owner->id)->first();
+                            $response_array = array(
+                                'success' => false,
+                                'error' => 94,
+                                'error_messages' => array(94),
+                                'error_code' => 405,
+                                'id' => $owner->id,
+                                'first_name' => $owner->first_name,
+                                'last_name' => $owner->last_name,
+                                'phone' => $owner->phone,
+                                'email' => $owner->email,
+                                'picture' => $owner->picture,
+                                'bio' => $owner->bio,
+                                'address' => $owner->address,
+                                'state' => $owner->state,
+                                'country' => $owner->country,
+                                'zipcode' => $owner->zipcode,
+                                'login_by' => $owner->login_by,
+                                'social_unique_id' => $owner->social_unique_id,
+                                'device_token' => $owner->device_token,
+                                'device_type' => $owner->device_type,
+                                'token' => $owner->token,
+                                'referral_code' => $code_data->referral_code,
+                                'is_referee' => $owner->is_referee,
+                                'promo_count' => $owner->promo_count,
+                            );
+                            $response_code = 200;
+                        }
+                    } else {
+                        $owner = Owner::find($owner_id);
+                        $owner->is_referee = 1;
+                        $owner->save();
+                        $owner = Owner::find($owner_id);
+                        $code_data = Ledger::where('owner_id', '=', $owner->id)->first();
+                        $response_array = array(
+                            'success' => true,
+                            'error' => 95,
+                            'error_messages' => array(95),
+                            'id' => $owner->id,
+                            'first_name' => $owner->first_name,
+                            'last_name' => $owner->last_name,
+                            'phone' => $owner->phone,
+                            'email' => $owner->email,
+                            'picture' => $owner->picture,
+                            'bio' => $owner->bio,
+                            'address' => $owner->address,
+                            'state' => $owner->state,
+                            'country' => $owner->country,
+                            'zipcode' => $owner->zipcode,
+                            'login_by' => $owner->login_by,
+                            'social_unique_id' => $owner->social_unique_id,
+                            'device_token' => $owner->device_token,
+                            'device_type' => $owner->device_type,
+                            'token' => $owner->token,
+                            'referral_code' => $code_data->referral_code,
+                            'is_referee' => $owner->is_referee,
+                            'promo_count' => $owner->promo_count,
+                        );
+                        $response_code = 200;
+                    }
+                } else {
+                    $response_array = array('success' => false, 'error' => 9, 'error_messages' => array(9), 'error_code' => 405);
+                    $response_code = 200;
+                }
+            } else {
+                if ($is_admin) {
+                    $response_array = array('success' => false, 'error' => 10, 'error_messages' => array(10), 'error_code' => 410);
+                } else {
+                    $response_array = array('success' => false, 'error' => 11, 'error_messages' => array(11), 'error_code' => 406);
+                }
+                $response_code = 200;
+            }
+        }
+
+        $response = Response::json($response_array, $response_code);
+        return $response;
+    }
+
+
+    public function isAdmin($token) {
+        return false;
+    }
+
+    public function getOwnerData($owner_id, $token, $is_admin) {
+
+        if ($owner_data = Owner::where('token', '=', $token)->where('id', '=', $owner_id)->first()) {
+            return $owner_data;
+        } elseif ($is_admin) {
+            $owner_data = Owner::where('id', '=', $owner_id)->first();
+            if (!$owner_data) {
+                return false;
+            }
+            return $owner_data;
+        } else {
+            return false;
+        }
     }
 
     public function login() {
@@ -367,12 +617,14 @@ class OwnerController extends Controller
     }
 
     public function register() {
+        $helper = new Helper();
         $first_name = ucwords(trim(Input::get('first_name')));
         $last_name = ucwords(trim(Input::get('last_name')));
         $email = Input::get('email');
         $phone = "";
         if (Input::has('phone')) {
             $phone = Input::get('phone');
+            //$phone = '0'.substr($number, -9);
         }    
         $password = Input::get('password');
         $picture = "";
@@ -462,10 +714,10 @@ class OwnerController extends Controller
                                 'phone' => $phone,
                             ), 
                             array(
-                        'phone' => 'phone'
+                             'phone' => '',
                             ), 
                             array(
-                        'phone.phone' => 25
+                             'phone.phone' => 25
                             )
             );
         } elseif ($social_unique_id != "" and $password == "") {
@@ -537,18 +789,14 @@ class OwnerController extends Controller
 
         if ($validator->fails()) {
             $error_messages = $validator->messages()->all();
-
             //Log::info('Error while during owner registration = ' . print_r($error_messages, true));
             $response_array = array('success' => false, 'error' => 8, 'error_code' => 401, 'error_messages' => $error_messages);
             $response_code = 200;
         } else if ($validatorPhone->fails()) {
-           
-            $error_messages = $validator->messages()->all();
-            $response_array = array('success' => false, 'error' => 24, 'error_code' => 401, 'error_messages' => $error_messages);
+            $error_messages = $validatorPhone->messages()->all();
+            $response_array = array('phone'=>$phone,'success' => false, 'error' => 24, 'error_code' => 401, 'error_messages' => $error_messages[0]);
             $response_code = 200;
-        } else {
-
-            
+        } else {            
             if (Owner::onlyTrashed()->where('email', '=', $email)->first()) {
                 $response_array = array('success' => false, 'error' => 105, 'error_messages' => array(105), 'error_code' => 430);
                 $response_code = 200;
@@ -587,8 +835,8 @@ class OwnerController extends Controller
                 if ($password != "") {
                     $owner->password = Hash::make($password);
                 }
-                $owner->token = generate_token();
-                $owner->token_expiry = generate_expiry();
+                $owner->token = $helper->generate_token();
+                $owner->token_expiry = $helper->generate_expiry();
 
                 // upload image
                 $file_name = time();
@@ -600,7 +848,7 @@ class OwnerController extends Controller
                     $local_url = $file_name . "." . $ext;
 
                     // Upload to S3
-                    if (Config::get('app.s3_bucket') != "") {
+                    if (\Config::get('app.s3_bucket') != "") {
                         $s3 = App::make('aws')->get('s3');
                         $pic = $s3->putObject(array(
                             'Bucket' => Config::get('app.s3_bucket'),
@@ -609,14 +857,15 @@ class OwnerController extends Controller
                         ));
 
                         $s3->putObjectAcl(array(
-                            'Bucket' => Config::get('app.s3_bucket'),
+                            'Bucket' => \Config::get('app.s3_bucket'),
                             'Key' => $file_name,
                             'ACL' => 'public-read'
                         ));
 
-                        $s3_url = $s3->getObjectUrl(Config::get('app.s3_bucket'), $file_name);
+                        $s3_url = $s3->getObjectUrl(\Config::get('app.s3_bucket'), $file_name);
                     } else {
-                        $s3_url = web_url() . '/uploads/' . $local_url;
+                        //$s3_url = $helper->web_url() . '/uploads/' . $local_url;
+                        $s3_url = $local_url;
                     }
                     $owner->picture = $s3_url;
                 }
@@ -635,7 +884,7 @@ class OwnerController extends Controller
                 $owner->country = "";
                 if (Input::has('country'))
                     $owner->country = $country;
-                $owner->zipcode = "0";
+                    $owner->zipcode = "0";
                 if (Input::has('zipcode'))
                     $owner->zipcode = $zipcode;
                 if ($social_unique_id != "") {
@@ -651,7 +900,6 @@ class OwnerController extends Controller
                 $owner->promo_count = 0;
                 $owner->save();
 
-
                 /* $zero_in_code = Config::get('app.referral_zero_len') - strlen($owner->id);
                   $referral_code = Config::get('app.referral_prefix');
                   for ($i = 0; $i < $zero_in_code; $i++) {
@@ -659,7 +907,7 @@ class OwnerController extends Controller
                   }
                   $referral_code .= $owner->id; */
                 regenerate:
-                $referral_code = my_random6_number();
+                $referral_code = $helper->my_random6_number();
                 if (Ledger::where('referral_code', $referral_code)->count()) {
                     goto regenerate;
                 }
@@ -708,25 +956,25 @@ class OwnerController extends Controller
                     $owner_country = $owner->country;
                 }
                 if ($owner->zipcode == NULL) {
-                    $owner_zipcode = "";
+                    $owner_zipcode = "256";
                 } else {
                     $owner_zipcode = $owner->zipcode;
                 }
                 if ($owner->timezone == NULL) {
-                    $owner_time = Config::get('app.timezone');
+                    $owner_time = \Config::get('app.timezone');
                 } else {
                     $owner_time = $owner->timezone;
                 }
 
-                $stripe_secret_key = Config::get('app.stripe_secret_key');
-                $stripe_publishable_key = Config::get('app.stripe_publishable_key');
-                $gcm_browser_key = Config::get('app.gcm_browser_key');
+                $stripe_secret_key = \Config::get('app.stripe_secret_key');
+                $stripe_publishable_key = \Config::get('app.stripe_publishable_key');
+                $gcm_browser_key = \Config::get('app.gcm_browser_key');
 
                 $settings = Settings::where('key', 'contact_us_email')->first();
                 $admin_email = $settings->value;
-                $pattern = array('contact_us_email' => $admin_email, 'name' => ucwords($owner->first_name . " " . $owner->last_name), 'web_url' => web_url());
-                $subject = "Welcome to". ucwords(Config::get('app.website_title')) . ", " . ucwords($owner->first_name . " " . $owner->last_name) . "";
-                email_notification($owner->id, 'owner', $pattern, $subject, 'user_register', null);
+                $pattern = array('contact_us_email' => $admin_email, 'name' => ucwords($owner->first_name . " " . $owner->last_name), 'web_url' => $helper->web_url());
+                $subject = "Welcome to". ucwords(\Config::get('app.website_title')) . ", " . ucwords($owner->first_name . " " . $owner->last_name) . "";
+                $helper->email_notification($owner->id, 'owner', $pattern, $subject, 'user_register', null);
                 $response_array = array(
                     'success' => true,
                     'id' => $owner->id,
@@ -753,8 +1001,8 @@ class OwnerController extends Controller
                     'is_referral_active_txt' => $referral_code_activation_txt,
                     'is_promo_active' => $promotional_code_activation,
                     'is_promo_active_txt' => $promotional_code_activation_txt,
-                    'refered_user_bonus' => sprintf2($refered_user, 2) . " " . Config::get('app.generic_keywords.Currency'),
-                    'refereel_user_bonus' => sprintf2($refereel_user, 2) . " " . Config::get('app.generic_keywords.Currency'),
+                    'refered_user_bonus' => sprintf($refered_user, 2) . " " . \Config::get('app.generic_keywords.Currency'),
+                    'refereel_user_bonus' => sprintf($refereel_user, 2) . " " . \Config::get('app.generic_keywords.Currency'),
                     'stripe_secret_key' => $stripe_secret_key,
                     'stripe_publishable_key' => $stripe_publishable_key,
                     'gcm_browser_key' => $gcm_browser_key,
@@ -3017,7 +3265,8 @@ class OwnerController extends Controller
     }
 
     public function logout() {
-        if (Request::isMethod('post')) {
+        $helper = new Helper();
+        if (Request::isMethod('post')){
             $token = Input::get('token');
             $owner_id = Input::get('id');
 
@@ -3042,7 +3291,7 @@ class OwnerController extends Controller
                 $is_admin = $this->isAdmin($token);
                 if ($owner_data = $this->getOwnerData($owner_id, $token, $is_admin)) {
                     // check for token validity
-                    if (is_token_active($owner_data->token_expiry) || $is_admin) {
+                    if ($helper->is_token_active($owner_data->token_expiry) || $is_admin) {
 
                         $owner_data->latitude = 0;
                         $owner_data->longitude = 0;

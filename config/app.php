@@ -53,9 +53,9 @@ return [
     */
 
 
-    'url' => env('APP_URL', 'http://192.168.8.104/'),
+    'url' => env('APP_URL', 'http://192.168.8.105/'),
 
-    'asset_url' => env('ASSET_URL', 'http://192.168.8.104/'),
+    'asset_url' => env('ASSET_URL', 'http://192.168.8.105/'),
 
 
 
