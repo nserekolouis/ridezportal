@@ -3495,7 +3495,7 @@ class CustomerController extends Controller
                             $response_code = 200;
                         }
                     } else {
-                        $response_array = array('success' => false, 'error' => 52, 'error_messages' => array(52), 'error_code' => 408);
+                        $response_array = array('req_id'=>$request_id, 'success' => false, 'error' => 52, 'error_messages' => array(52), 'error_code' => 408);
                         $response_code = 200;
                     }
                 } else {

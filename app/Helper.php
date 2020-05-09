@@ -420,7 +420,7 @@ function date_time_differ_two($datetime1) {
 }
 
 function unlink_image($image) {
-    $base_asset_url = asset_url();
+    $base_asset_url = $this->asset_url();
 
     $base = str_replace($base_asset_url, '../public', $image);
     try {
@@ -855,8 +855,6 @@ function email_notification($id, $type, $message_body, $subject, $trip = null, $
          // dd($email);
     }
     
-   
-    
     if ($email_notification == 1 || $is_imp == "imp") {
       
         if ($language != 0) {
@@ -1134,8 +1132,8 @@ function send_email($id, $type, $email_data, $subject, $email_type) {
                     $message->to($email)->subject($subject);
                 });
             } else if ($email_type == 'forgotpassword') {
-                Mail::send('emails.forgotpassword', array('email_data' => $email_data), function ($message) use ($email, $subject) {
-                    $message->to($email)->subject($subject);
+                Mail::send('emails.forgotpassword', array('email_data' => $email_data), function ($message) use ($email,$subject) {
+                    return $message->to($email)->subject($subject);
                 });
             } else {
                 Mail::send('emails.layout', array('mail_body' => $message_body), function ($message) use ($email, $subject) {

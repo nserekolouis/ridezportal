@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Input;
 use App\ProviderType;
 use App\Requests;
 use App\Owner;
@@ -17,6 +18,7 @@ use DB;
 use View;
 use Helper;
 use Response;
+use Hash;
 
 class ApplicationController extends Controller
 {
@@ -225,6 +227,7 @@ class ApplicationController extends Controller
     }
 
     public function forgot_password() {
+        $helper = new Helper();
         $type = Input::get('type');
         $email = Input::get('email');
         if ($type == 1) {
@@ -279,12 +282,12 @@ class ApplicationController extends Controller
                   send_email($owner->id, 'owner', $email_data, $subject, 'forgotpassword'); */
                 $settings = Settings::where('key', 'admin_email_address')->first();
                 $admin_email = $settings->value;
-                $login_url = web_url() . "/user/signin";
+                $login_url = $helper->web_url() . "/user/signin";
                 $pattern = array('name' => $owner->first_name . " " . $owner->last_name, 'admin_eamil' => $admin_email, 'new_password' => $new_password, 'login_url' => $login_url);
                 $subject = "Your New Password";
-                email_notification($owner->id, 'owner', $pattern, $subject, 'forgot_password', "imp");
-
-
+                //$helper = new Helper();
+                //$helper->email_notification($owner->id, 'owner', $pattern, $subject, 'forgot_password', "imp");
+                $response_array['email'] = $helper->send_email($owner->id, 'owner', $pattern, $subject,'forgotpassword');
                 $response_array = array();
                 $response_array['success'] = true;
                 $response_code = 200;
