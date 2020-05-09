@@ -94,12 +94,10 @@
 								<tr>
 									<td width="100%" class="resp-full-td" valign="top" style="text-align : justify;">
 										
-										<div style="padding: 10px;font-size:12px; font-family:'Helvetica Neue', helvetica, arial, sans-serif; font-weight:100; color:#545454;text-align:center;">You requested a password reset.Your New Password is <?php echo $email_data['password']; ?>. Please dont forget to change the password once you log in next time.
+										<div style="padding: 10px;font-size:12px; font-family:'Helvetica Neue', helvetica, arial, sans-serif; font-weight:100; color:#545454;text-align:center;">You requested a password reset.Your New Password is <?php echo $email_data['new_password']; ?>. Please dont forget to change the password once you log in next time.
 										</div>
 										<br><br>
-										<div style="text-align:center"><a href="taxinow.xyz" style="padding: 10px;font-size:18px; font-family:'Helvetica Neue', helvetica, arial, sans-serif; font-weight:100;background-color: #2ECC71;color:#fff;text-align:center;  text-decoration: none;">Login</a></div>
-
-																										
+										<!-- <div style="text-align:center"><a href="" style="padding: 10px;font-size:18px; font-family:'Helvetica Neue', helvetica, arial, sans-serif; font-weight:100;background-color: #2ECC71;color:#fff;text-align:center;  text-decoration: none;">Login</a></div> -->										
 										<br>
 									</td>
 								</tr>

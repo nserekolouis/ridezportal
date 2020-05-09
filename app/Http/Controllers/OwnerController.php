@@ -19,11 +19,17 @@ use App\Theme;
 use App\Settings;
 use App\RequestMeta;
 use App\Ledger;
+use App\ProviderType;
+use App\WalkLocation;
+use App\Walkers;
+use App\ProviderServices;
+use App\WalkerReview;
 use Response;
 use Hash;
 use Helper;
 use Request;
-//use Validator;
+use DB;
+
 
 class OwnerController extends Controller
 {
@@ -1660,6 +1666,8 @@ class OwnerController extends Controller
 
     public function get_referral_code() {
 
+        $helper = new Helper();
+
         $token = Input::get('token');                                                                              
         $owner_id = Input::get('id');
 
@@ -1688,7 +1696,7 @@ class OwnerController extends Controller
             $is_admin = $this->isAdmin($token);
             if ($owner_data = $this->getOwnerData($owner_id, $token, $is_admin)) {
                 // check for token validity
-                if (is_token_active($owner_data->token_expiry) || $is_admin) {
+                if ($helper->is_token_active($owner_data->token_expiry) || $is_admin) {
                     // Do necessary operations
 
                     $ledger = Ledger::where('owner_id', $owner_id)->first();
@@ -1700,9 +1708,9 @@ class OwnerController extends Controller
                             'amount_earned' => $ledger->amount_earned,
                             'amount_spent' => $ledger->amount_spent,
                             'balance_amount' => $ledger->amount_earned - $ledger->amount_spent,
-                            'currency' => Config::get('app.currency_symb'),
-                            'refered_user_bonus' => sprintf2($refered_user, 2) . " " . Config::get('app.generic_keywords.Currency'),
-                            'refereel_user_bonus' => sprintf2($refereel_user, 2) . " " . Config::get('app.generic_keywords.Currency'),
+                            'currency' => \Config::get('app.currency_symb'),
+                            'refered_user_bonus' => sprintf($refered_user, 2) . " " . \Config::get('app.generic_keywords.Currency'),
+                            'refereel_user_bonus' => sprintf($refereel_user, 2) . " " . \Config::get('app.generic_keywords.Currency'),
                         );
                     } else {
                         $response_array = array('success' => false, 'error' => 45, 'error_messages' => array(45));
@@ -1731,7 +1739,7 @@ class OwnerController extends Controller
     }
 
     public function get_cards() {
-
+    
         $token = Input::get('token');
         $owner_id = Input::get('id');
         if (Input::has('card_id')) {
@@ -1919,7 +1927,7 @@ class OwnerController extends Controller
     }
 
     public function get_completed_requests() {
-
+        $helper = new Helper();
         $token = Input::get('token');
         $owner_id = Input::get('id');
         $from = Input::get('from_date'); // 2015-03-11 07:45:01
@@ -1947,7 +1955,7 @@ class OwnerController extends Controller
             $is_admin = $this->isAdmin($token);
             if ($owner_data = $this->getOwnerData($owner_id, $token, $is_admin)) {
                 // check for token validity
-                if (is_token_active($owner_data->token_expiry) || $is_admin) {
+                if ($helper->is_token_active($owner_data->token_expiry) || $is_admin) {
                     // Do necessary operations
                     if ($from != "" && $to_date != "") {
                         $request_data = DB::table('request')
@@ -1972,7 +1980,7 @@ class OwnerController extends Controller
                                 ->leftJoin('walker_type', 'walker_type.id', '=', 'walker_services.type')
                                 ->leftJoin('request_services', 'request_services.request_id', '=', 'request.id')
                                 ->select('request.*', 'request.request_start_time', 'request.promo_code', 'walker.first_name', 'walker.id as walker_id', 'walker.last_name', 'walker.phone', 'walker.email', 'walker.picture', 'walker.bio', 'walker.rate', 'walker_type.name as type', 'walker_type.icon', 'request.distance', 'request.time', 'request_services.base_price as req_base_price', 'request_services.distance_cost as req_dis_cost', 'request_services.time_cost as req_time_cost', 'request_services.type as req_typ', 'request.total')
-                                ->groupBy('request.id')
+                                ->groupBy('request.id','walker.id','walker_type.id','request_services.id')
                                 ->get();
                     }
 
@@ -2009,7 +2017,7 @@ class OwnerController extends Controller
                             $end = WalkLocation::where('request_id', $id)
                                     ->orderBy('id', 'desc')
                                     ->first();
-                            $map = "https://maps-api-ssl.google.com/maps/api/staticmap?key=".Config::get('app.gcm_browser_key')."&size=600x250&scale=2&markers=shadow:true|scale:2|icon:http://d1a3f4spazzrp4.cloudfront.net/receipt-new/marker-start@2x.png|$start->latitude,$start->longitude&markers=shadow:false|scale:2|icon:http://d1a3f4spazzrp4.cloudfront.net/receipt-new/marker-finish@2x.png|$end->latitude,$end->longitude&path=color:0x2dbae4ff|weight:4";
+                            $map = "https://maps-api-ssl.google.com/maps/api/staticmap?key=".\Config::get('app.gcm_browser_key')."&size=600x250&scale=2&markers=shadow:true|scale:2|icon:http://d1a3f4spazzrp4.cloudfront.net/receipt-new/marker-start@2x.png|$start->latitude,$start->longitude&markers=shadow:false|scale:2|icon:http://d1a3f4spazzrp4.cloudfront.net/receipt-new/marker-finish@2x.png|$end->latitude,$end->longitude&path=color:0x2dbae4ff|weight:4";
                             $skip = 0;
                             foreach ($locations as $location) {
                                 if ($skip == $count) {
@@ -2046,9 +2054,9 @@ class OwnerController extends Controller
                             $user_timezone = 'UTC';
                         }
 
-                        $default_timezone = Config::get('app.timezone');
+                        $default_timezone = \Config::get('app.timezone');
 
-                        $date_time = get_user_time($default_timezone, $user_timezone, $data->request_start_time);
+                        $date_time = $helper->get_user_time($default_timezone, $user_timezone, $data->request_start_time);
 
                         $dist = number_format($data->distance, 2, '.', '');
                         $request['id'] = $data->id;
@@ -2074,21 +2082,21 @@ class OwnerController extends Controller
                             }
                         }
 
-                        $request['promo_discount'] = currency_converted($discount);
+                        $request['promo_discount'] = $helper->currency_converted($discount);
 
                         $is_multiple_service = Settings::where('key', 'allow_multiple_service')->first();
                         if ($is_multiple_service->value == 0) {
 
-                            $request['base_price'] = currency_converted($data->req_base_price);
+                            $request['base_price'] = $helper->currency_converted($data->req_base_price);
 
-                            $request['distance_cost'] = currency_converted($data->req_dis_cost);
+                            $request['distance_cost'] = $helper->currency_converted($data->req_dis_cost);
 
 
-                            $request['time_cost'] = currency_converted($data->req_time_cost);
+                            $request['time_cost'] = $helper->currency_converted($data->req_time_cost);
 
                             $request['setbase_distance'] = $setbase_distance;
-                            $request['total'] = currency_converted($data->total);
-                            $request['actual_total'] = currency_converted($data->total + $data->ledger_payment + $discount);
+                            $request['total'] = $helper->currency_converted($data->total);
+                            $request['actual_total'] = $helper->currency_converted($data->total + $data->ledger_payment + $discount);
                             $request['type'] = $data->type;
                             $request['type_icon'] = $data->icon;
                         } else {
@@ -2114,7 +2122,7 @@ class OwnerController extends Controller
                                     $typp1 = 0.00;
                                 }
                                 $typs['name'] = $typ1->name;
-                                $typs['price'] = currency_converted($typp1);
+                                $typs['price'] = $helper->currency_converted($typp1);
                                 $total_price = $total_price + $typp1;
                                 array_push($typi, $typs);
                             }
@@ -2127,10 +2135,10 @@ class OwnerController extends Controller
                                 $distance_cost = $distance_cost + $key->distance_cost;
                                 $time_cost = $time_cost + $key->time_cost;
                             }
-                            $request['base_price'] = currency_converted($base_price);
-                            $request['distance_cost'] = currency_converted($distance_cost);
-                            $request['time_cost'] = currency_converted($time_cost);
-                            $request['total'] = currency_converted($total_price);
+                            $request['base_price'] = $helper->currency_converted($base_price);
+                            $request['distance_cost'] = $helper->currency_converted($distance_cost);
+                            $request['time_cost'] = $helper->currency_converted($time_cost);
+                            $request['total'] = $helper->currency_converted($total_price);
                         }
 
                         $pt_new = ProviderType::where('id', $walker->type)->first();
@@ -2139,13 +2147,13 @@ class OwnerController extends Controller
 
                         if ($pt_new->base_price != 0) {
 
-                            $request['price_per_unit_distance'] = currency_converted($pt_new->price_per_unit_distance);
-                            $request['price_per_unit_time'] = currency_converted($pt_new->price_per_unit_time);
+                            $request['price_per_unit_distance'] = $helper->currency_converted($pt_new->price_per_unit_distance);
+                            $request['price_per_unit_time'] = $helper->currency_converted($pt_new->price_per_unit_time);
                         } else {
 
-                            $request['price_per_unit_distance'] = currency_converted($ps_new->price_per_unit_distance);
+                            $request['price_per_unit_distance'] = $helper->currency_converted($ps_new->price_per_unit_distance);
 
-                            $request['price_per_unit_time'] = currency_converted($ps_new->price_per_unit_time);
+                            $request['price_per_unit_time'] = $helper->currency_converted($ps_new->price_per_unit_time);
                         }
 
 
@@ -2164,22 +2172,22 @@ class OwnerController extends Controller
                         /* $request['currency'] = $currency_selected->keyword; */
                         $request['src_address'] = $data->src_address;
                         $request['dest_address'] = $data->dest_address;
-                        $request['base_price'] = currency_converted($data->req_base_price);
-                        $request['distance_cost'] = currency_converted($data->req_dis_cost);
-                        $request['time_cost'] = currency_converted($data->req_time_cost);
-                        $tot = currency_converted($data->total - $data->ledger_payment - $data->promo_payment);
+                        $request['base_price'] = $helper->currency_converted($data->req_base_price);
+                        $request['distance_cost'] = $helper->currency_converted($data->req_dis_cost);
+                        $request['time_cost'] = $helper->currency_converted($data->req_time_cost);
+                        $tot = $helper->currency_converted($data->total - $data->ledger_payment - $data->promo_payment);
                         if ($tot <= 0) {
                             $tot = 0;
                         }
                         $request['total'] = $tot;
-                        $request['main_total'] = currency_converted($data->total);
-                        $request['referral_bonus'] = currency_converted($data->ledger_payment);
-                        $request['promo_bonus'] = currency_converted($data->promo_payment);
+                        $request['main_total'] = $helper->currency_converted($data->total);
+                        $request['referral_bonus'] = $helper->currency_converted($data->ledger_payment);
+                        $request['promo_bonus'] = $helper->currency_converted($data->promo_payment);
                         $request['payment_type'] = $data->payment_mode;
                         $request['is_paid'] = $data->is_paid;
                         $request['promo_id'] = $data->promo_id;
                         $request['promo_code'] = $data->promo_code;
-                        $request['currency'] = Config::get('app.generic_keywords.Currency');
+                        $request['currency'] = \Config::get('app.generic_keywords.Currency');
                         $request['walker']['first_name'] = $data->first_name;
                         $request['walker']['last_name'] = $data->last_name;
                         $request['walker']['phone'] = $data->phone;
@@ -2218,7 +2226,7 @@ class OwnerController extends Controller
     }
 
     public function update_profile() {
-
+        $helper = new Helper();
         $token = Input::get('token');
         $owner_id = Input::get('id');
         $first_name = $last_name = $phone = $password = $picture = $bio = $address = $state = $country = $zipcode = 0;
@@ -2273,7 +2281,7 @@ class OwnerController extends Controller
             $is_admin = $this->isAdmin($token);
             if ($owner_data = $this->getOwnerData($owner_id, $token, $is_admin)) {
                 // check for token validity
-                if (is_token_active($owner_data->token_expiry) || $is_admin) {
+                if ($helper->is_token_active($owner_data->token_expiry) || $is_admin) {
                     if ($new_password != "" || $new_password != NULL) {
                         if ($old_password != "" || $old_password != NULL) {
                             if (Hash::check($old_password, $owner_data->password)) {
@@ -2461,29 +2469,30 @@ class OwnerController extends Controller
                             $local_url = $file_name . "." . $ext;
 
                             // Upload to S3
-                            if (Config::get('app.s3_bucket') != "") {
+                            if (\Config::get('app.s3_bucket') != "") {
                                 $s3 = App::make('aws')->get('s3');
                                 $pic = $s3->putObject(array(
-                                    'Bucket' => Config::get('app.s3_bucket'),
+                                    'Bucket' => \Config::get('app.s3_bucket'),
                                     'Key' => $file_name,
                                     'SourceFile' => public_path() . "/uploads/" . $local_url,
                                 ));
 
                                 $s3->putObjectAcl(array(
-                                    'Bucket' => Config::get('app.s3_bucket'),
+                                    'Bucket' => \Config::get('app.s3_bucket'),
                                     'Key' => $file_name,
                                     'ACL' => 'public-read'
                                 ));
 
-                                $s3_url = $s3->getObjectUrl(Config::get('app.s3_bucket'), $file_name);
+                                $s3_url = $s3->getObjectUrl(\Config::get('app.s3_bucket'), $file_name);
                             } else {
-                                $s3_url = web_url() . '/uploads/' . $local_url;
+                                //$s3_url = web_url() . '/uploads/' . $local_url;
+                                $s3_url = $local_url;
                             }
 
                             if (isset($owner->picture)) {
                                 if ($owner->picture != "") {
                                     $icon = $owner->picture;
-                                    unlink_image($icon);
+                                    //$helper->unlink_image($icon);
                                 }
                             }
 
