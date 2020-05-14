@@ -1,1 +1,1 @@
-<?php echo $mail_body; ?>
+<?php echo $email_data['name']; ?>

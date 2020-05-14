@@ -136,6 +136,7 @@ class ProviderController extends Controller
     }
 
     public function register() {
+        $helper = new Helper();
         $first_name = ucwords(trim(Input::get('first_name')));
         $last_name = ucwords(trim(Input::get('last_name')));
         $email = Input::get('email');
@@ -226,7 +227,7 @@ class ProviderController extends Controller
                             array(
                         'phone' => $phone,
                             ), array(
-                        'phone' => 'phone'
+                        'phone' => ''
                             ), array(
                         'phone.phone' => 10
                             )
@@ -287,7 +288,7 @@ class ProviderController extends Controller
                             array(
                         'phone' => $phone,
                             ), array(
-                        'phone' => 'phone'
+                        'phone' => ''
                             ), array(
                         'phone.phone' => 10
                             )
@@ -343,8 +344,8 @@ class ProviderController extends Controller
                 if ($password != "") {
                     $walker->password = Hash::make($password);
                 }
-                $walker->token = generate_token();
-                $walker->token_expiry = generate_expiry();
+                $walker->token = $helper->generate_token();
+                $walker->token_expiry = $helper->generate_expiry();
                 // upload image
                 $file_name = time();
                 $file_name .= rand();
@@ -373,7 +374,7 @@ class ProviderController extends Controller
 
                         $s3_url = $s3->getObjectUrl(\Config::get('app.s3_bucket'), $file_name);
                     } else {
-                        $s3_url = web_url() . '/uploads/' . $local_url;
+                        $s3_url = $local_url;
                     }
                 }
                 $walker->picture = $s3_url;
@@ -466,9 +467,10 @@ class ProviderController extends Controller
                   send_email($walker->id, 'walker', $email_data, $subject, 'providerregister'); */
                 $settings = Settings::where('key', 'contact_us_email')->first();
                 $admin_email = $settings->value;
-                $pattern = array('contact_us_email' => $admin_email, 'name' => ucwords($walker->first_name . " " . $walker->last_name), 'web_url' => web_url());
+                $pattern = array('contact_us_email' => $admin_email, 'name' => ucwords($walker->first_name . " " . $walker->last_name), 'web_url' => $helper->web_url());
                 $subject = "Welcome to " . ucwords(\Config::get('app.website_title')) . ", " . ucwords($walker->first_name . " " . $walker->last_name) . "";
-                email_notification($walker->id, 'walker', $pattern, $subject, 'walker_register', null);
+                //email_notification($walker->id, 'walker', $pattern, $subject, 'walker_register', null);
+                $helper->send_email($walker->id, 'walker', $pattern, $subject, 'walker_register');
                 $txt_approve = "Decline";
                 if ($walker->is_approved) {
                     $txt_approve = "Approved";

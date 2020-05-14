@@ -132,11 +132,14 @@
 									<tr>
 											<td><?= $walker->id ?></td>
 											<td width="60px">
-													@if($walker->picture)
+													<!-- @if($walker->picture)
 													<a href="<?=$walker->picture; ?>" target="_blank" onclick="window.open('<?php echo $walker->picture; ?>', 'popup', 'height=500px, width=400px'); return false;">
-													<img src="<?=$walker->picture; ?>" alt="<?=$walker->first_name . ' ' . $walker->last_name; ?>" />
-												</a>
-													@endif
+													<img src="/uploads/<?=$walker->picture; ?>" alt="<?=$walker->first_name . ' ' . $walker->last_name; ?>" width="40" 
+													height="40"/>
+												    </a>
+													@endif -->
+													<img src="/uploads/<?=$walker->picture; ?>" alt="<?=$walker->first_name . ' ' . $walker->last_name; ?>" width="50" 
+													height="50"/>
 											</td>
 											<td><?php echo $walker->first_name . " " . $walker->last_name; ?> </td>
 											<td><?= $walker->phone ?></td>

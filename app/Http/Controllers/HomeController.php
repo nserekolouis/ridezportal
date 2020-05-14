@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+
 use Illuminate\Support\Facades\Input;
 use Illuminate\Support\Facades\Session;
 use App\Requests;
@@ -17,11 +17,13 @@ use App\Information;
 use App\ProviderType;
 use App\Document;
 use App\PromoCodes;
+use App\Helper;
 use DB;
 use View;
 use Response;
 use Lang;
 use Config;
+use Request;
 
 use Illuminate\Support\Facades\Auth;
 
@@ -1090,6 +1092,68 @@ class HomeController extends Controller{
         Auth::logout();
         return redirect('/login');
    }
-  
 
+   public function approve_walker() {
+        $helper = new Helper();
+        $id = Request::segment(3);
+        $success = Input::get('success');
+        $walker = Walker::find($id);
+        $walker->is_approved = 1;
+
+        $txt_approve = "Decline";
+        if ($walker->is_approved) {
+            $txt_approve = "Approved";
+        }
+        $response_array = array(
+            'unique_id' => 5,
+            'success' => true,
+            'id' => $walker->id,
+            'first_name' => $walker->first_name,
+            'last_name' => $walker->last_name,
+            'phone' => $walker->phone,
+            'email' => $walker->email,
+            'picture' => $walker->picture,
+            'bio' => $walker->bio,
+            'address' => $walker->address,
+            'state' => $walker->state,
+            'country' => $walker->country,
+            'zipcode' => $walker->zipcode,
+            'login_by' => $walker->login_by,
+            'social_unique_id' => $walker->social_unique_id,
+            'device_token' => $walker->device_token,
+            'device_type' => $walker->device_type,
+            'token' => $walker->token,
+            'type' => $walker->type,
+            'is_approved' => $walker->is_approved,
+            'is_approved_txt' => $txt_approve,
+        );
+        $user_type = 1;
+        $title = $helper->transl('you_approved',$id,$user_type);
+        $message = $response_array;
+        $helper->send_notifications($id, "walker", $title, $message, "imp");
+        /* SMS */
+        $settings = Settings::where('key', 'sms_walker_approve')->first();
+        $pattern = $settings->value;
+        $pattern = str_replace('%name%', $walker->first_name . " " . $walker->last_name, $pattern);
+        # sms_notification($id, 'walker', $pattern);
+        /* SMS END */
+        /* EMAIL */
+        /* $settings = Settings::where('key', 'email_walker_approve')->first();
+          $pattern = $settings->value;
+          $pattern = str_replace('%name%', $walker->first_name . " " . $walker->last_name, $pattern); */
+        $settings = Settings::where('key', 'contact_us_email')->first();
+        $admin_email = $settings->value;
+        $pattern = array('name' => $walker->first_name . " " . $walker->last_name, 'contact_us_email' => $admin_email);
+        $subject = "Welcome " . $walker->first_name . " " . $walker->last_name . " To " . \Config::get('app.website_title') . "";
+        //email_notification($id, 'walker', $pattern, $subject, 'walker_approve');
+        $helper->send_email($id, 'walker', $pattern, $subject, 'walker_approve');
+        /* EMAIL END */
+        $walker->save();
+        /*  $pattern = "Hi " . $walker->first_name . ", Your Documents are verified by the Admin and your account is Activated, Please Login to Continue";
+          $subject = "Your Account Activated";
+          email_notification($walker->id, 'walker', $pattern, $subject); */
+        //return Redirect::to("/providers");
+        return redirect('/providers');
+    }
+  
 }

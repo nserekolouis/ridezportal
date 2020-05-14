@@ -205,3 +205,4 @@ Route::post('/theme', array('as' => 'AdminTheme', 'uses' => 'AdminController@the
 Route::post('/provider/location', 'ProviderController@walker_location');
 
 Route::post('/user/apply-referral', 'OwnerController@apply_referral_code');
+Route::get('/provider/approve/{id}', array('as' => 'AdminProviderApprove', 'uses' => 'HomeController@approve_walker'));
