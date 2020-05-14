@@ -1136,7 +1136,7 @@ function send_email($id, $type, $email_data, $subject, $email_type) {
                     return $message->to($email)->subject($subject);
                 });
             } else {
-                Mail::send('emails.layout', array('mail_body' => $message_body), function ($message) use ($email, $subject) {
+                Mail::send('emails.layout', array('email_data' => $email_data), function ($message) use ($email, $subject) {
                     $message->to($email)->subject($subject);
                 });
             }
