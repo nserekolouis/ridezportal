@@ -2088,7 +2088,7 @@ class ProviderController extends Controller
                                         ->where('request_id', $request_id)
                                         ->min('created_at');
 
-                                $date_time = get_user_time($default_timezone, $user_timezone, $time);
+                                $date_time = $helper->get_user_time($default_timezone, $user_timezone, $time);
 
                                 $request_data['start_time'] = $date_time;
 
@@ -2108,7 +2108,7 @@ class ProviderController extends Controller
                                         ->where('request_id', $request_id)
                                         ->max('created_at');
 
-                                $end_time = get_user_time($default_timezone, $user_timezone, $time);
+                                $end_time = $helper->get_user_time($default_timezone, $user_timezone, $time);
 
                                 $request_data['end_time'] = $end_time;
                             }
@@ -3651,6 +3651,10 @@ class ProviderController extends Controller
                                             $bill['base_price'] = $helper->currency_converted($requestserv->base_price);
                                             $bill['distance_cost'] = $helper->currency_converted($requestserv->distance_cost);
                                             $bill['time_cost'] = $helper->currency_converted(floatval(sprintf($requestserv->time_cost, 2)));
+                                            //$distance_cost = $distance * $pt_new->price_per_unit_distance;
+                                            //$bill['distance_cost'] = $helper->currency_converted($distance_cost);
+                                            //$time_cost = floatval(sprintf($request->time, 2)) * 200;
+                                            //$bill['time_cost'] = $helper->currency_converted(floatval(sprintf($time_cost, 2)));
                                         } else {
                                             $bill['base_price'] = $helper->currency_converted($providertype->base_price);
                                             $bill['distance_cost'] = $helper->currency_converted($providertype->price_per_unit_distance);
@@ -4588,21 +4592,22 @@ class ProviderController extends Controller
     }
         
     // Add Location Data
-        public function walk_location() {
-                if (Request::isMethod('post')) {
-                        $request_id = Input::get('request_id');
-                        $token = Input::get('token');
-                        $walker_id = Input::get('id');
-                        $latitude = Input::get('latitude');
-                        $longitude = Input::get('longitude');
-                        if (Input::has('bearing')) {
-                                $angle = Input::get('bearing');
-                        }
-                        if (Input::has('fcm_token')) {
-                                $fcm = Input::get('fcm_token');
-                        }
-                        
-                        $validator = Validator::make(
+  public function walk_location() {
+    $helper = new Helper();
+    if (Request::isMethod('post')) {
+       $request_id = Input::get('request_id');
+       $token = Input::get('token');
+       $walker_id = Input::get('id');
+       $latitude = Input::get('latitude');
+       $longitude = Input::get('longitude');
+       if (Input::has('bearing')) {
+          $angle = Input::get('bearing');
+       }
+      if (Input::has('fcm_token')) {
+          $fcm = Input::get('fcm_token');
+      }
+      
+      $validator = Validator::make(
                             array(
                                 'request_id' => $request_id,
                                 'token' => $token,
@@ -4621,186 +4626,186 @@ class ProviderController extends Controller
                                 'walker_id.required' => 20,
                                 'latitude.required' => 28,
                                 'longitude.required' => 28,
-                            )
-                        );
-                        
-                        if ($validator->fails()) {
-                                $error_messages = $validator->messages()->all();
-                                $response_array = array('success' => false, 'error' => 12, 'error_code' => 401, 'error_messages' => $error_messages);
-                                $response_code = 200;
-                        } else {
-                                $unit = $unit_set = -1;
-                                $settings = Settings::where('key', 'default_distance_unit')->first();
-                                $unit = $settings->value;
-                                if ($unit == 0) {
-                                        $unit_set = 'kms';
-                                } elseif ($unit == 1) {
-                                        $unit_set = 'miles';
-                                }
-                                $is_admin = $this->isAdmin($token);
-                                if ($walker_data = $this->getWalkerData($walker_id, $token, $is_admin)) {
-                                        // check for token validity
-                                           $helper = new Helper();
-                                        if ($helper->is_token_active($walker_data->token_expiry) || $is_admin) {
-                                                // Do necessary operations
-                                                $settings = Settings::where('key', 'request_time_costing_type')->first();
-                                                $time_fare_type = $settings->value;
-                                                if ($request = Requests::find($request_id)) {
-                                                        if ($request->confirmed_walker == $walker_id) {
-                                                                if ($request->is_started == 1) {
-                                                                        $walk_location_last = WalkLocation::where('request_id', $request_id)->orderBy('created_at', 'desc')->first();
-                                                                        if ($walk_location_last) {
-                                                                                $distance_old = $walk_location_last->distance;
-                                                                                $distance_new = distanceGeoPoints($walk_location_last->latitude, $walk_location_last->longitude, $latitude, $longitude);
-                                                                                $distance_new = $helper->convert($distance_new, $unit);
-                                                                                $distance = $distance_old + $distance_new;
-                                                                        } else {
-                                                                                $distance = 0;
-                                                                        }
-                                                                        $walker = Walker::find($walker_id);
-                                                                        $helper = new Helper();
-                                                                        $location = $helper->get_location($latitude, $longitude);
-                                                                        $latitude = $location['lat'];
-                                                                        $longitude = $location['long'];
-                                                                        if (!isset($angle)) {
-                                                                                $angle = $helper->get_angle($walker->latitude, $walker->longitude, $latitude, $longitude);
-                                                                        }
-                                                                        $walker->old_latitude = $walker->latitude;
-                                                                        $walker->old_longitude = $walker->longitude;
-                                                                        $walker->latitude = $latitude;
-                                                                        $walker->longitude = $longitude;
-                                                                        $walker->bearing = $angle;
-                                                                        if (!isset($fcm)) {
-                                                                            $fcm = '';
-                                                                        }
-                                                                        $walker->fcm_token = $fcm;
-                                                                        $walker->save();
-                                                                        /* GET SECOND LAST ENTY FOR TIME */
-                                                                        if ($time_fare_type) {
-                                                                                $loc1 = WalkLocation::where('request_id', $request->id)->orderBy('id', 'desc')->first();
-                                                                        } else {
-                                                                                $loc1 = WalkLocation::where('request_id', $request->id)->orderBy('id', 'asc')->first();
-                                                                        }
-                                                                        /* GET SECOND LAST ENTY FOR TIME END */
-                                                                        if ($request->is_completed != 1) {
-                                                                                $walk_location = new WalkLocation;
-                                                                                $walk_location->request_id = $request_id;
-                                                                                $walk_location->latitude = $latitude;
-                                                                                $walk_location->longitude = $longitude;
-                                                                                $walk_location->distance = $distance;
-                                                                                $walk_location->bearing = $angle;
-                                                                                $walk_location->save();
-                                                                        }
-                                                                        $one_minut_old_time = date("Y-m-d H:i:s", strtotime(date("Y-m-d H:i:s")) - 60);
-                                                                        /* $loc1 = WalkLocation::where('request_id', $request->id)->first(); */
-                                                                        /* print $loc1; */
-                                                                        $loc2 = WalkLocation::where('request_id', $request->id)->orderBy('id', 'desc')->first();
-                                                                        if ($loc1) {
-                                                                                $time1 = strtotime($loc2->created_at);
-                                                                                $time2 = strtotime($loc1->created_at);
-                                                                                /* echo $difference = intval(($time1 - $time2) / 60); */
-                                                                                $difference = ($time1 - $time2) / 60;
-                                                                                if ($loc1min = WalkLocation::where('request_id', $request->id)->where('created_at', '<=', $one_minut_old_time)->orderBy('id', 'desc')->first()) {
-                                                                                        $distence = distanceGeoPoints($loc1min->latitude, $loc1min->longitude, $latitude, $longitude);
-                                                                                        if ($request->is_completed != 1) {
-                                                                                                if ($time_fare_type) {
-                                                                                                        if ($distence <= 50) {
-                                                                                                                $request->time = $request->time + $difference;
-                                                                                                        } else {
-                                                                                                                $request->time = $request->time;
-                                                                                                        }
-                                                                                                } else {
-                                                                                                        $request->time = $difference;
-                                                                                                }
-                                                                                        }
-                                                                                } else {
-                                                                                        $request->time = 0;
-                                                                                }
-                                                                        } else {
-                                                                                $request->time = 0;
-                                                                        }
-                                                                        $request->distance = $distance;
-                                                                        $request->save();
-                                                                        $response_array = array(
-                                                                                'success' => true,
-                                                                                'dest_latitude' => $request->D_latitude,
-                                                                                'dest_longitude' => $request->D_longitude,
-                                                                                'payment_type' => $request->payment_mode,
-                                                                                'is_cancelled' => $request->is_cancelled,
-                                                                                'distance' => $distance,
-                                                                                'unit' => $unit_set,
-                                                                                'time' => $request->time,
-                                                                        );
-                                                                        $response_code = 200;
-                                                                } else {
-                                                                        $walker = Walker::find($walker_id);
-                                                                        $helper = new Helper();
-                                                                        $location = $helper->get_location($latitude, $longitude);
-                                                                        $latitude = $location['lat'];
-                                                                        $longitude = $location['long'];
-                                                                        if (!isset($angle)) {
-                                                                                $angle = $helper->get_angle($walker->latitude, $walker->longitude, $latitude, $longitude);
-                                                                        }
-                                                                        $walker->old_latitude = $walker->latitude;
-                                                                        $walker->old_longitude = $walker->longitude;
-                                                                        $walker->latitude = $latitude;
-                                                                        $walker->longitude = $longitude;
-                                                                        $walker->bearing = $angle;
-                                                                        if (isset($fcm)) {
-                                                                                $walker->fcm_token = $fcm;
-                                                                        }
-                                                                        $walker->save();
-                                                                        $response_array = array(
-                                                                                'success' => false,
-                                                                                'dest_latitude' => $request->D_latitude,
-                                                                                'dest_longitude' => $request->D_longitude,
-                                                                                'payment_type' => $request->payment_mode,
-                                                                                'is_cancelled' => $request->is_cancelled,
-                                                                                'unit' => $unit_set,
-                                                                                'error' => 34,
-                                                                                'error_messages' => array(34),
-                                                                                'error_code' => 414,
-                                                                        );
-                                                                        $response_code = 200;
-                                                                }
-                                                        } else {
-                                                                /* $var = Keywords::where('id', 1)->first();
-                                                                    $response_array = array('success' => false, 'error' => 'Request ID doesnot matches with ' . $var->keyword . ' ID', 'error_messages' => array('Request ID doesnot matches with ' . $var->keyword . ' ID'), 'error_code' => 407); */
-                                                                $response_array = array(
-                                                                        'success' => false,
-                                                                        'dest_latitude' => $request->D_latitude,
-                                                                        'dest_longitude' => $request->D_longitude,
-                                                                        'payment_type' => $request->payment_mode,
-                                                                        'is_cancelled' => $request->is_cancelled,
-                                                                        'unit' => $unit_set,
-                                                                        'error' => 22,
-                                                                        'error_messages' => array(22),
-                                                                        'error_code' => 407);
-                                                                $response_code = 200;
-                                                        }
-                                                } else {
-                                                        $response_array = array('success' => false, 'error' => 23, 'error_messages' => array(23), 'error_code' => 408);
-                                                        $response_code = 200;
-                                                }
-                                        } else {
-                                                $response_array = array('success' => false, 'error' => 24, 'error_messages' => array(24), 'error_code' => 405);
-                                                $response_code = 200;
-                                        }
-                                } else {
-                                        if ($is_admin) {
-                                                /* $var = Keywords::where('id', 1)->first();
-                                                    $response_array = array('success' => false, 'error' => '' . $var->keyword . ' ID not Found', 'error_messages' => array('' . $var->keyword . ' ID not Found'), 'error_code' => 410); */
-                                                $response_array = array('success' => false, 'error' => 25, 'error_messages' => array(25), 'error_code' => 410);
-                                        } else {
-                                                $response_array = array('success' => false, 'error' => 26, 'error_messages' => array(26), 'error_code' => 406);
-                                        }
-                                        $response_code = 200;
-                                }
-                        }
+                            ));
+      
+      if($validator->fails()){
+         $error_messages = $validator->messages()->all();
+         $response_array = array('success' => false, 'error' => 12, 'error_code' => 401, 'error_messages' => $error_messages);
+         $response_code = 200;
+      }else{
+        $unit = $unit_set = -1;
+        $settings = Settings::where('key', 'default_distance_unit')->first();
+        $unit = $settings->value;
+        if ($unit == 0){
+           $unit_set = 'kms';
+        }elseif($unit == 1){
+          $unit_set = 'miles';
         }
-        $response = Response::json($response_array, $response_code);
-        return $response;
+        $is_admin = $this->isAdmin($token);
+        if ($walker_data = $this->getWalkerData($walker_id, $token, $is_admin)) {
+           // check for token validity
+          if ($helper->is_token_active($walker_data->token_expiry) || $is_admin) {
+            // Do necessary operations
+              $settings = Settings::where('key', 'request_time_costing_type')->first();
+              $time_fare_type = $settings->value;
+            if ($request = Requests::find($request_id)) {
+              if ($request->confirmed_walker == $walker_id) {
+                if ($request->is_started == 1) {
+                  $walk_location_last = WalkLocation::where('request_id', $request_id)->orderBy('created_at', 'desc')->first();
+                  if ($walk_location_last) {
+                    $distance_old = $walk_location_last->distance;
+                    $distance_new = $helper->distanceGeoPoints($walk_location_last->latitude, $walk_location_last->longitude, $latitude, $longitude);
+                    $distance_new = $helper->convert($distance_new, $unit);
+                    $distance = $distance_old + $distance_new;
+                  }else{
+                    $distance = 0;
+                  }
+                  
+                    $walker = Walker::find($walker_id);
+                    $helper = new Helper();
+                    $location = $helper->get_location($latitude, $longitude);
+                    $latitude = $location['lat'];
+                    $longitude = $location['long'];
+                    if (!isset($angle)) {
+                      $angle = $helper->get_angle($walker->latitude, $walker->longitude, $latitude, $longitude);
+                    }
+                    $walker->old_latitude = $walker->latitude;
+                    $walker->old_longitude = $walker->longitude;
+                    $walker->latitude = $latitude;
+                    $walker->longitude = $longitude;
+                    $walker->bearing = $angle;
+                    if (!isset($fcm)) {
+                        $fcm = '';
+                    }
+                    //$walker->device_token = $fcm;
+                    $walker->save();
+                    /* GET SECOND LAST ENTY FOR TIME */
+                    if ($time_fare_type) {
+                            $loc1 = WalkLocation::where('request_id', $request->id)->orderBy('id', 'desc')->first();
+                    } else {
+                            $loc1 = WalkLocation::where('request_id', $request->id)->orderBy('id', 'asc')->first();
+                    }
+                    /* GET SECOND LAST ENTY FOR TIME END */
+                    if ($request->is_completed != 1) {
+                            $walk_location = new WalkLocation;
+                            $walk_location->request_id = $request_id;
+                            $walk_location->latitude = $latitude;
+                            $walk_location->longitude = $longitude;
+                            $walk_location->distance = $distance;
+                            $walk_location->bearing = $angle;
+                            $walk_location->save();
+                    }
+                    $one_minut_old_time = date("Y-m-d H:i:s", strtotime(date("Y-m-d H:i:s")) - 60);
+                    /* $loc1 = WalkLocation::where('request_id', $request->id)->first(); */
+                    /* print $loc1; */
+                    $loc2 = WalkLocation::where('request_id', $request->id)->orderBy('id', 'desc')->first();
+                    if ($loc1) {
+                            $time1 = strtotime($loc2->created_at);
+                            $time2 = strtotime($loc1->created_at);
+                            /* echo $difference = intval(($time1 - $time2) / 60); */
+                            $difference = ($time1 - $time2) / 60;
+                            if ($loc1min = WalkLocation::where('request_id', $request->id)->where('created_at', '<=', $one_minut_old_time)
+                                                       ->orderBy('id', 'desc')->first()) {
+                              $distence = $helper->distanceGeoPoints($loc1min->latitude, $loc1min->longitude, $latitude, $longitude);
+                              if ($request->is_completed != 1) {
+                                  if ($time_fare_type){
+                                          if ($distence <= 50){
+                                            $request->time = $request->time + $difference;
+                                          }else{
+                                            $request->time = $request->time;
+                                          }
+                                  } else {
+                                             $request->time = $difference;
+                                  }
+                              }
+                            }else{
+                                    $request->time = 0;
+                            }
+                    }else{
+                          $request->time = 0;
+                    }
+                    $request->distance = $distance;
+                    $request->save();
+                    $response_array = array(
+                            'success' => true,
+                            'dest_latitude' => $request->D_latitude,
+                            'dest_longitude' => $request->D_longitude,
+                            'payment_type' => $request->payment_mode,
+                            'is_cancelled' => $request->is_cancelled,
+                            'distance' => $distance,
+                            'unit' => $unit_set,
+                            'time' => $request->time,
+                    );
+                    $response_code = 200;
+              } else {
+                  $walker = Walker::find($walker_id);
+                  $helper = new Helper();
+                  $location = $helper->get_location($latitude, $longitude);
+                  $latitude = $location['lat'];
+                  $longitude = $location['long'];
+                  if (!isset($angle)) {
+                          $angle = $helper->get_angle($walker->latitude, $walker->longitude, $latitude, $longitude);
+                  }
+                  $walker->old_latitude = $walker->latitude;
+                  $walker->old_longitude = $walker->longitude;
+                  $walker->latitude = $latitude;
+                  $walker->longitude = $longitude;
+                  $walker->bearing = $angle;
+                  if (isset($fcm)) {
+                          $walker->fcm_token = $fcm;
+                  }
+                  $walker->save();
+                  $response_array = array(
+                          'success' => false,
+                          'dest_latitude' => $request->D_latitude,
+                          'dest_longitude' => $request->D_longitude,
+                          'payment_type' => $request->payment_mode,
+                          'is_cancelled' => $request->is_cancelled,
+                          'unit' => $unit_set,
+                          'error' => 34,
+                          'error_messages' => array(34),
+                          'error_code' => 414,
+                  );
+                  $response_code = 200;
+            }
+        } else {
+                /* $var = Keywords::where('id', 1)->first();
+                    $response_array = array('success' => false, 'error' => 'Request ID doesnot matches with ' . $var->keyword . ' ID', 'error_messages' => array('Request ID doesnot matches with ' . $var->keyword . ' ID'), 'error_code' => 407); */
+                $response_array = array(
+                        'success' => false,
+                        'dest_latitude' => $request->D_latitude,
+                        'dest_longitude' => $request->D_longitude,
+                        'payment_type' => $request->payment_mode,
+                        'is_cancelled' => $request->is_cancelled,
+                        'unit' => $unit_set,
+                        'error' => 22,
+                        'error_messages' => array(22),
+                        'error_code' => 407);
+                $response_code = 200;
+        }
+      } else {
+              $response_array = array('success' => false, 'error' => 23, 'error_messages' => array(23), 'error_code' => 408);
+              $response_code = 200;
+      }
+      } else {
+              $response_array = array('success' => false, 'error' => 24, 'error_messages' => array(24), 'error_code' => 405);
+              $response_code = 200;
+      }
+      } else {
+              if ($is_admin) {
+                      /* $var = Keywords::where('id', 1)->first();
+                          $response_array = array('success' => false, 'error' => '' . $var->keyword . ' ID not Found', 'error_messages' => array('' . $var->keyword . ' ID not Found'), 'error_code' => 410); */
+                      $response_array = array('success' => false, 'error' => 25, 'error_messages' => array(25), 'error_code' => 410);
+              } else {
+                      $response_array = array('success' => false, 'error' => 26, 'error_messages' => array(26), 'error_code' => 406);
+              }
+              $response_code = 200;
+      }
     }
+   }
+    $response = Response::json($response_array, $response_code);
+    return $response;
+  }
 
     // Check online/offline state
     public function check_state() {

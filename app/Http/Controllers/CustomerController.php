@@ -5617,12 +5617,9 @@ class CustomerController extends Controller
     // Request in Progress
 
     public function request_in_progress() {
-
-
         $token = Input::get('token');
         $fcm_token = Input::get('fcm_token');
         $owner_id = Input::get('id');
-
         $validator = Validator::make(
                         array(
                     'token' => $token,
@@ -5646,7 +5643,7 @@ class CustomerController extends Controller
             $is_admin = $this->isAdmin($token);
             $stripe_secret_key = \Config::get('app.stripe_secret_key');
             $stripe_publishable_key = \Config::get('app.stripe_publishable_key');
-            $gcm_browser_key = \Config::get('app.gcm_browser_key');
+            $gcm_browser_key = \Config::get('app.gcm_client_key');
             
             if ($owner_data = $this->getOwnerData($owner_id, $token, $is_admin)) {
                 // check for token validity
@@ -5686,11 +5683,11 @@ class CustomerController extends Controller
                 $response_code = 200;
             }
         }
-
-
         $response = Response::json($response_array, $response_code);
         return $response;
     }
+  
+    
 
     public function create_future_request() {
         $token = Input::get('token');
@@ -8305,6 +8302,26 @@ class CustomerController extends Controller
       $response['fare'] = $rounded_fare;
       return $response;
     }
+  }
+  
+  public function get_autocomplete_places_list(){
+    $placename = Input::post('placename');
+    if(!empty($placename)){
+      $gcm_browser_key = \Config::get('app.gcm_browser_key');
+      $encoded_placename = urlencode($placename);
+      $url ="https://maps.googleapis.com/maps/api/place/autocomplete/json?sensor=false&key=".$gcm_browser_key."&radius=500&input=".$encoded_placename;
+      $method = "POST";
+      //return json_decode($this->CallAPI($method,$url,false),true);
+      return $this->CallAPI($method,$url,false);
+    }else{
+      $response['status_code'] = '0';
+      $response['message'] = 'please put a place name';
+      return $response;
+    }
+  }
+  
+  public function get_latlng(){
+    
   }
   
   function CallAPI($method, $url, $data = false){

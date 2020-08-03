@@ -18,6 +18,7 @@ use App\ProviderType;
 use App\Document;
 use App\PromoCodes;
 use App\Helper;
+use App\ProviderServices;
 use DB;
 use View;
 use Response;
@@ -49,6 +50,219 @@ class HomeController extends Controller{
     public function index()
     {
         return redirect('/report');
+    }
+  
+  
+    public function update_walker() {
+      if (Input::get('id') != 0) {
+        $walker = Walker::find(Input::get('id'));
+			}else{
+        $findWalker = Walker::where('email', Input::get('email'))->first();
+        if ($findWalker) {
+          Session::put('new_walker', 0);
+					$error_messages = "This Email Id is already registered.";
+					Session::put('msg', $error_messages);
+					$title = ucwords("Add" . trans('customize.Provider')); /* 'Add Provider' */
+					return View::make('add_walker')
+                       ->with('title', $title)
+											 ->with('page', 'walkers');
+        }else{
+          Session::put('new_walker', 1);
+					$walker = new Walker;
+        }
+      }
+      if(Input::has('service') != NULL){
+        foreach (Input::get('service') as $key){
+          $serv = ProviderType::where('id', $key)->first();
+          $pserv[] = $serv->name;
+        }
+      }
+      
+      $first_name = Input::get('first_name');
+      $last_name = Input::get('last_name');
+      $email = Input::get('email');
+      $phone = Input::get('phone');
+      $bio = Input::get('bio');
+      $address = Input::get('address');
+      $state = Input::get('state');
+      $country = Input::get('country');
+      $zipcode = Input::get('zipcode');
+      $validator = Validator::make(
+        array(
+          'first_name' => $first_name,
+					'last_name' => $last_name,
+					'email' => $email,
+					'phone' => $phone,
+					'bio' => $bio,
+					'state' => $state,
+					'country' => $country,
+						/* 'zipcode' => $zipcode, */
+					), array(
+          'first_name' => 'required',
+					'last_name' => 'required',
+				  'email' => 'required|email',
+					'phone' => 'required',
+					'bio' => 'required',
+					'state' => 'required',
+					'country' => 'required',
+						/* 'zipcode' => 'required|integer' */
+					), array(
+          'first_name' => 'First Name field is required.',
+					'last_name' => 'Last Name field is required.',
+					'email' => 'Email field is required',
+					'phone' => 'Phone number must be required.',
+					'bio' => '',
+					'state' => '',
+					'country' => '',
+					/* 'zipcode' => '' */
+					)
+				);
+      
+      if ($validator->fails()) {
+        $error_messages = $validator->messages()->first();
+        Session::put('msg', $error_messages);
+        $title = ucwords("Add" . trans('customize.Provider')); /* 'Add Provider' */
+        return View::make('add_walker')
+                     ->with('title', $title)
+                     ->with('page', 'walkers');
+      }else{
+        $walker->first_name = Input::get('first_name');
+        $walker->last_name = Input::get('last_name');
+        $walker->email = Input::get('email');
+        $walker->phone = Input::get('phone');
+        $walker->bio = Input::get('bio');
+        $walker->address = Input::get('address');
+        $walker->state = Input::get('state');
+        // adding password to new provider
+        
+        $new_password = time();
+        $new_password .= rand();
+        $new_password = sha1($new_password);
+        $new_password = substr($new_password, 0, 8);
+        /* $walker->password = Hash::make($new_password); */
+
+        $walker->country = Input::get('country');
+        $walker->zipcode = Input::get('zipcode');
+        $walker->is_approved = 1;
+        $walker->email_activation = 1;
+        $car_number = trim(Input::get('car_number'));
+        if ($car_number != "") {
+          $walker->car_number = $car_number;
+        }
+        $car_model = trim(Input::get('car_model'));
+        if ($car_model != "") {
+          $walker->car_model = $car_model;
+        }
+        
+        if (Input::hasFile('pic')) {
+          $file_name = time();
+          $file_name .= rand();
+          $ext = Input::file('pic')->getClientOriginalExtension();
+          Input::file('pic')->move(public_path() . "/uploads", $file_name . "." . $ext);
+          $local_url = $file_name . "." . $ext;
+          // Upload to S3
+          if (Config::get('app.s3_bucket') != "") {
+            $s3 = App::make('aws')->get('s3');
+            $pic = $s3->putObject(array(
+              'Bucket' => Config::get('app.s3_bucket'),
+              'Key' => $file_name,
+              'SourceFile' => public_path() . "/uploads/" . $local_url,
+            ));
+            $s3->putObjectAcl(array(
+              'Bucket' => Config::get('app.s3_bucket'),
+              'Key' => $file_name,
+              'ACL' => 'public-read'
+            ));
+            $s3_url = $s3->getObjectUrl(Config::get('app.s3_bucket'), $file_name);
+          }else{
+            $s3_url = asset_url() . '/uploads/' . $local_url;
+          }
+          
+          if (isset($walker->picture)) {
+            if ($walker->picture != "") {
+              $icon = $walker->picture;
+              unlink_image($icon);
+            }
+          }
+          $walker->picture = $s3_url;
+        }
+        $walker->save();
+        
+        if (Session::get('new_walker') == 1) {
+           // send email
+           $settings = Settings::where('key', 'email_forgot_password')->first();
+           $pattern = $settings->value;
+           $pattern = "Hi, " . Config::get('app.website_title') . " is Created a New Account for you , Your Username is:" . Input::get('email') . " and Your Password is " . $new_password . ". Please dont forget to change the password once you log in next time.";
+           $subject = "Welcome On Board";
+           /* email_notification($walker->id, 'walker', $pattern, $subject); */
+        }
+        
+        if (Input::has('service') != NULL) {
+              foreach (Input::get('service') as $ke) {
+                $proviserv = ProviderServices::where('provider_id', $walker->id)->first();
+                if ($proviserv != NULL) {
+                   DB::delete("delete from walker_services where provider_id = '" . $walker->id . "'");
+                }
+              }
+              $base_price = Input::get('service_base_price');
+              $service_price_distance = Input::get('service_price_distance');
+              $service_price_time = Input::get('service_price_time');
+              Log::info('service = ' . print_r(Input::get('service'), true));
+              $cnkey = count(Input::get('service'));
+              $type_id = trim((Input::get('service')[0]));
+              Log::info('cnkey = ' . print_r($cnkey, true));
+              /* for ($i = 1; $i <= $cnkey; $i++) { */
+
+              foreach (Input::get('service') as $key) {
+                $prserv = new ProviderServices;
+                $prserv->provider_id = $walker->id;
+                $prserv->type = $key;
+                $walker->type = $key;
+                $walker->save();
+
+                /* Log::info('key = ' . print_r($key, true)); */
+                if (Input::has('service_base_price')) {
+                   $prserv->base_price = $base_price[$key];
+                }else{
+                   $prserv->base_price = 0;
+                }
+
+                if (Input::has('service_price_distance')) {
+                   $prserv->price_per_unit_distance = $service_price_distance[$key];
+                } else {
+                   $prserv->price_per_unit_distance = 0;
+                }
+                if (Input::has('service_price_distance')) {
+                   $prserv->price_per_unit_time = $service_price_time[$key];
+                } else {
+                   $prserv->price_per_unit_distance = 0;
+                }
+                   $prserv->save();
+                }
+                /* } */
+           }
+            return Redirect::to("/providers");
+        }
+    }
+    
+    public function edit_walker() {
+      $id = Request::segment(3);
+      $type = ProviderType::where('is_visible', '=', 1)->get();
+      $provserv = ProviderServices::where('provider_id', $id)->get();
+      $success = Input::get('success');
+      $walker = Walker::find($id);
+      if($walker){
+        $title = ucwords("Edit " . trans('customize.Provider') . " : " . $walker->first_name . " " . $walker->last_name); /* 'Edit Provider' */
+        return View::make('edit_walker')
+                     ->with('title', $title)
+                     ->with('page', 'walkers')
+                     ->with('success', $success)
+                     ->with('type', $type)
+                     ->with('ps', $provserv)
+                     ->with('walker', $walker);
+      }else{
+        return View::make('notfound')->with('title', 'Error Page Not Found')->with('page', 'Error Page Not Found');
+      }
     }
 
     public function report(){
@@ -1154,6 +1368,226 @@ class HomeController extends Controller{
           email_notification($walker->id, 'walker', $pattern, $subject); */
         //return Redirect::to("/providers");
         return redirect('/providers');
+    }
+
+
+    // public function get_provider_types() {
+    //     $settings = Settings::where('key', 'default_distance_unit')->first();
+    //     $success = Input::get('success');
+    //     $unit = $settings->value;
+    //     if ($unit == 0) {
+    //         $unit_set = 'kms';
+    //     } elseif ($unit == 1) {
+    //         $unit_set = 'miles';
+    //     }
+    //     $types = ProviderType::paginate(10);
+    //     $title = ucwords(trans('customize.Provider') . " " . trans('customize.Types')); /* 'Provider Types' */
+    //     return View::make('list_provider_types')
+    //                     ->with('title', $title)
+    //                     ->with('page', 'provider-type')
+    //                     ->with('unit_set', $unit_set)
+    //                     ->with('success', $success)
+    //                     ->with('types', $types);
+    // }
+
+
+    public function searchpvtype() {
+        $success = Input::get('success');
+        $valu = $_GET['valu'];
+        $type = $_GET['type'];
+        Session::put('valu', $valu);
+        Session::put('type', $type);
+        if ($type == 'provid') {
+            $types = ProviderType::where('id', $valu)->paginate(10);
+        } elseif ($type == 'provname') {
+            $types = ProviderType::where('name', 'like', '%' . $valu . '%')->paginate(10);
+        }
+        $settings = Settings::where('key', 'default_distance_unit')->first();
+        $unit = $settings->value;
+        if ($unit == 0) {
+            $unit_set = 'kms';
+        } elseif ($unit == 1) {
+            $unit_set = 'miles';
+        }
+        $title = ucwords(trans('customize.Provider') . " " . trans('customize.Types')); /* 'Provider Types' */
+        return View::make('list_provider_types')
+                        ->with('title', $title)
+                        ->with('page', 'provider-type')
+                        ->with('success', $success)
+                        ->with('unit_set', $unit_set)
+                        ->with('types', $types);
+    }
+
+    public function delete_provider_type() {
+        $id = Request::segment(3);
+        ProviderType::where('id', $id)->where('is_default', 0)->delete();
+        return Redirect::to("/provider-types");
+    }
+
+    public function edit_provider_type() {
+        //$path = public_path('uploads/' . '1552401533649391358.png');
+        //echo $path;
+        $id = Request::segment(3);
+        $success = Input::get('success');
+        $providers_type = ProviderType::find($id);
+        $settings = Settings::where('key', 'default_distance_unit')->first();
+        $unit = $settings->value;
+        if ($unit == 0) {
+            $unit_set = 'kms';
+        } elseif ($unit == 1) {
+            $unit_set = 'miles';
+        }
+        
+        #echo json_encode($data);
+
+
+        if ($providers_type) {
+            $id = $providers_type->id;
+            $name = $providers_type->name;
+            $is_default = $providers_type->is_default;
+            $base_price = $providers_type->base_price;
+            $base_distance = $providers_type->base_distance;
+            $price_per_unit_distance = $providers_type->price_per_unit_distance;
+            $price_per_unit_time = $providers_type->price_per_unit_time;
+            $icon = $providers_type->icon;
+            $base_price = $providers_type->base_price;
+            $max_size = $providers_type->max_size;
+            $is_visible = $providers_type->is_visible;
+            $title = ucwords("Edit Provider Type" . " : " . $name);
+        } else {
+            $id = 0;
+            $name = "";
+            $is_default = "";
+            $base_distance = 1;
+            $base_price = "";
+            $price_per_unit_time = "";
+            $price_per_unit_distance = "";
+            $icon = "";
+            $base_price = '';
+            $max_size = '';
+            $is_visible = "";
+            $title = "Add New Provider Type";
+        }
+
+        return View::make('edit_provider_type')
+                        ->with('title', $title)
+                        ->with('page', 'provider-type')
+                        ->with('success', $success)
+                        ->with('id', $id)
+                        ->with('base_price', $base_price)
+                        ->with('base_distance', $base_distance)
+                        ->with('max_size', $max_size)
+                        ->with('name', $name)
+                        ->with('is_default', $is_default)
+                        ->with('base_price', $base_price)
+                        ->with('icon', $icon)
+                        ->with('is_visible', $is_visible)
+                        ->with('price_per_unit_time', $price_per_unit_time)
+                        ->with('price_per_unit_distance', $price_per_unit_distance)
+                        ->with('unit_set', $unit_set);
+    }
+
+    public function update_provider_type() {
+        $helper = new Helper();
+        $id = Input::get('id');
+        $name = ucwords(trim(Input::get('name')));
+        $base_distance = trim(Input::get('base_distance'));
+        if ($base_distance == "" || $base_distance == 0) {
+            $base_distance = 1;
+        }
+        $base_price = trim(Input::get('base_price'));
+        if ($base_price == "" || $base_price == 0) {
+            $base_price = 0;
+        }
+        $distance_price = trim(Input::get('distance_price'));
+        if ($distance_price == "" || $distance_price == 0) {
+            $distance_price = 0;
+        }
+        $time_price = trim(Input::get('time_price'));
+        if ($time_price == "" || $time_price == 0) {
+            $time_price = 0;
+        }
+        $max_size = trim(Input::get('max_size'));
+        if ($max_size == "" || $max_size == 0) {
+            $max_size = 0;
+        }
+        $is_default = Input::get('is_default');
+        $is_visible = trim(Input::get('is_visible'));
+
+        if ($is_default) {
+            if ($is_default == 1) {
+                ProviderType::where('is_default', 1)->update(array('is_default' => 0));
+            }
+        } else {
+            $is_default = 0;
+        }
+
+
+        if ($id == 0) {
+            $providers_type = new ProviderType;
+        } else {
+            $providers_type = ProviderType::find($id);
+        }
+        if (Input::hasFile('icon')) {
+            // Upload File
+            $file_name = time();
+            $file_name .= rand();
+            $ext = Input::file('icon')->getClientOriginalExtension();
+            list($width, $height) = getimagesize(Input::file('icon'));
+            /* echo "width : " . $width;
+              echo "height : " . $height; */
+            if ($width == $height && $width >= 300 && $height >= 300) {
+                Input::file('icon')->move(public_path() . "/uploads", $file_name . "." . $ext);
+                $local_url = $file_name . "." . $ext;
+
+                // Upload to S3
+                if (\Config::get('app.s3_bucket') != "") {
+                    $s3 = App::make('aws')->get('s3');
+                    $pic = $s3->putObject(array(
+                        'Bucket' => Config::get('app.s3_bucket'),
+                        'Key' => $file_name,
+                        'SourceFile' => public_path() . "/uploads/" . $local_url,
+                    ));
+
+                    $s3->putObjectAcl(array(
+                        'Bucket' => Config::get('app.s3_bucket'),
+                        'Key' => $file_name,
+                        'ACL' => 'public-read'
+                    ));
+
+                    $s3_url = $s3->getObjectUrl(Config::get('app.s3_bucket'), $file_name);
+                } else {
+                    $s3_url = $helper->asset_url() . '/uploads/' . $local_url;
+                }
+
+                if (isset($providers_type->icon)) {
+                    if ($providers_type->icon != "") {
+                        $icon = $providers_type->icon;
+                        unlink_image($icon);
+                    }
+                }
+
+                $providers_type->icon = $s3_url;
+            } else {
+                return Redirect::to("/provider-types?success=4");
+            }
+        }
+        if ($base_price <= 0 || $distance_price <= 0 || $time_price <= 0) {
+            return Redirect::to("/provider-type/edit/$providers_type->id?success=3");
+        }
+
+        $providers_type->name = $name;
+        $providers_type->base_distance = $base_distance;
+        $providers_type->base_price = $base_price;
+        $providers_type->price_per_unit_distance = $distance_price;
+        $providers_type->price_per_unit_time = $time_price;
+        $providers_type->max_size = $max_size;
+        $providers_type->is_default = $is_default;
+        $providers_type->is_visible = $is_visible;
+        $providers_type->save();
+
+        //return Redirect::to("/provider-type/edit/$providers_type->id?success=1");
+        return redirect("/provider-type/edit/$providers_type->id?success=1");
     }
   
 }

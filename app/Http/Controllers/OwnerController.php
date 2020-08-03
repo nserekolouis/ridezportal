@@ -365,7 +365,7 @@ class OwnerController extends Controller
         $device_type = Input::get('device_type');
         $stripe_secret_key = \Config::get('app.stripe_secret_key');
         $stripe_publishable_key = \Config::get('app.stripe_publishable_key');
-        $gcm_browser_key = \Config::get('app.gcm_browser_key');
+        $gcm_browser_key = \Config::get('app.gcm_client_key');
 
         if (Input::has('email') && Input::has('password')) {
             $email = Input::get('email');
@@ -974,7 +974,7 @@ class OwnerController extends Controller
 
                 $stripe_secret_key = \Config::get('app.stripe_secret_key');
                 $stripe_publishable_key = \Config::get('app.stripe_publishable_key');
-                $gcm_browser_key = \Config::get('app.gcm_browser_key');
+                $gcm_browser_key = \Config::get('app.gcm_client_key');
 
                 $settings = Settings::where('key', 'contact_us_email')->first();
                 $admin_email = $settings->value;
@@ -2017,7 +2017,7 @@ class OwnerController extends Controller
                             $end = WalkLocation::where('request_id', $id)
                                     ->orderBy('id', 'desc')
                                     ->first();
-                            $map = "https://maps-api-ssl.google.com/maps/api/staticmap?key=".\Config::get('app.gcm_browser_key')."&size=600x250&scale=2&markers=shadow:true|scale:2|icon:http://d1a3f4spazzrp4.cloudfront.net/receipt-new/marker-start@2x.png|$start->latitude,$start->longitude&markers=shadow:false|scale:2|icon:http://d1a3f4spazzrp4.cloudfront.net/receipt-new/marker-finish@2x.png|$end->latitude,$end->longitude&path=color:0x2dbae4ff|weight:4";
+                            $map = "https://maps-api-ssl.google.com/maps/api/staticmap?key=".\Config::get('app.gcm_client_key')."&size=600x250&scale=2&markers=shadow:true|scale:2|icon:http://d1a3f4spazzrp4.cloudfront.net/receipt-new/marker-start@2x.png|$start->latitude,$start->longitude&markers=shadow:false|scale:2|icon:http://d1a3f4spazzrp4.cloudfront.net/receipt-new/marker-finish@2x.png|$end->latitude,$end->longitude&path=color:0x2dbae4ff|weight:4";
                             $skip = 0;
                             foreach ($locations as $location) {
                                 if ($skip == $count) {

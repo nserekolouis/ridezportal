@@ -25,6 +25,8 @@ class VerifyCsrfToken extends Middleware
         '/provider/*',
         '/application/*',
         '/providers_xml',
-        '/downloadapps'
+        '/downloadapps',
+        '/provider-type/*',
+        '/request/location'
     ];
 }

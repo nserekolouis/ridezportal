@@ -60,6 +60,7 @@ return [
 
 
 
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone
@@ -243,6 +244,8 @@ return [
         'RequestMeta' => App\RequestMeta::class,
         'Helper' => App\Helper::class,
         'Ledger' => App\Ledger::class,
+        'ProviderType' => App\ProviderType::class,
+        'ProviderServices' => App\ProviderServices::class,
         'PromoCodes' => App\PromoCodes::class,
         'FCM'      => LaravelFCM\Facades\FCM::class,
         'FCMGroup' => LaravelFCM\Facades\FCMGroup::class,
@@ -289,6 +292,8 @@ return [
     'provider_certy_pass' => '123456',
     'provider_certy_type' => '1',
     'gcm_browser_key' => 'AIzaSyA9wgwd7gOfPASGneXAWRut6gs_PaBHBRM',
+    'gcm_client_key' => 'AIzaSyCooh1QWNUTYWw-s0GS1Ur4MiGjOII12fc',
+    'gcm_driver_key' => 'AIzaSyA9wgwd7gOfPASGneXAWRut6gs_PaBHBRM',
     //'gcm_browser_key' => 'AIzaSyBj2yjcv-nYtR05c1guFiIJiFKT4iajU4A',
     // 'gcm_browser_key' => 'AIzaSyBegXbpsyHXhz_QvOndzHKxwQNbpEbvVFE',
     //'gcm_browser_key' => 'AIzaSyD5FBryEU_fvVnmbHxUg0af3Et6C4atUJw',

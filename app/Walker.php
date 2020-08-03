@@ -19,6 +19,6 @@ class Walker extends Model {
 
 	protected $dates = ['deleted_at'];
 
-    protected $table = 'walker';
+  protected $table = 'walker';
 
 }

@@ -1,10 +1,9 @@
-
 <?php
 
-class Walk extends Eloquent {
+namespace App;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Model;
 
-    protected $table = 'walk';
-
-    
-
+class Walk extends Model {
+  protected $table = 'walk';
 }

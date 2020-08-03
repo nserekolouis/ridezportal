@@ -28,8 +28,8 @@ Route::get('/schedule', array('as' => 'AdminSchedule', 'uses' => 'HomeController
 Route::get('/users', array('as' => 'AdminUsers', 'uses' => 'HomeController@owners'));
 Route::get('/reviews', array('as' => 'AdminReviews', 'uses' => 'HomeController@reviews'));
 Route::get('/informations', array('as' => 'AdminInformations', 'uses' => 'HomeController@get_info_pages'));
-Route::get('/provider-types', array('as' => 'AdminProviderTypes', 'uses' => 'HomeController@get_provider_types'));
 Route::get('/document-types', array('as' => 'AdminDocumentTypes', 'uses' => 'HomeController@get_document_types'));
+
 Route::get('/promo_code', array('as' => 'AdminPromoCodes', 'uses' => 'HomeController@get_promo_codes'));
 Route::get('/notifications', array('as' => 'AdminPushNotifications', 'uses' => 'HomeController@get_notifications'));
 Route::get('/edit_keywords', array('as' => 'AdminKeywords', 'uses' => 'HomeController@edit_keywords'));
@@ -50,6 +50,8 @@ Route::get('/provider/availability/{id}', array('as' => 'AdminProviderAvailabili
 Route::get('/sortreq', array('as' => '/sortreq', 'uses' => 'HomeController@sortreq'));
 Route::get('/searchreq', array('as' => '/searchreq', 'uses' => 'HomeController@searchreq'));
 Route::get('/request/map/{id}', array('as' => 'AdminRequestsMap', 'uses' => 'AdminController@view_map'));
+Route::get('/provider/update', array('as' => 'AdminProviderUpdate', 'uses' => 'HomeController@update_walker'));
+//Route::post('/provider/update', 'HomeController@update_walker')->name('AdminProviderUpdate');
 //Route::get('/report','HomeController@report');
 
 //the api
@@ -112,11 +114,9 @@ Route::post('/user/payment_select', 'CustomerController@payment_select');
 Route::post('/user/provider_list', 'CustomerController@get_provider_list');
 Route::post('/user/setdestination', 'CustomerController@user_set_destination');
 Route::post('/user/geteta', 'CustomerController@get_eta');
-
 Route::post('/user/get_fare_estimate', 'CustomerController@get_fare_estimate');
-
-
-
+Route::post('/user/get_autocomplete_places_list', 'CustomerController@get_autocomplete_places_list');
+Route::post('/user/get_latlng', 'CustomerController@get_latlng');
 
 // Walker APIs
 Route::get('/provider/check_banking', 'ProviderController@check_banking');
@@ -206,3 +206,11 @@ Route::post('/provider/location', 'ProviderController@walker_location');
 
 Route::post('/user/apply-referral', 'OwnerController@apply_referral_code');
 Route::get('/provider/approve/{id}', array('as' => 'AdminProviderApprove', 'uses' => 'HomeController@approve_walker'));
+
+Route::get('/provider-types', array('as' => 'AdminProviderTypes', 'uses' => 'HomeController@get_provider_types'));
+
+Route::get('/provider-type/edit/{id}', array('as' => 'AdminProviderTypeEdit', 'uses' => 'HomeController@edit_provider_type'));
+
+Route::post('/provider-type/update', array('as' => 'AdminProviderTypeUpdate', 'uses' => 'HomeController@update_provider_type'));
+
+Route::get('/provider-type/delete/{id}', array('as' => 'AdminProviderTypeDelete', 'uses' => 'HomeController@delete_provider_type'));
